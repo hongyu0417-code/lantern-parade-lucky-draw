@@ -13,7 +13,7 @@ export function useFullscreen() {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       return document.documentElement.requestFullscreen();
     }
-    return Promise.resolve();
+    return Promise.reject(new Error('Fullscreen API is unavailable'));
   }, []);
 
   const exitFullscreen = useCallback(() => {

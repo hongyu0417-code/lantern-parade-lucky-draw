@@ -130,6 +130,7 @@ export default function App() {
       if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || isEditable(event.target)) return;
       const key = event.key.toLowerCase();
       if (key === ' ' || key === 'spacebar') {
+        if (event.target instanceof HTMLElement && event.target.closest('button, a, summary, [role="button"], [role="link"]')) return;
         if (state.phase === 'idle' && !state.overlay) { event.preventDefault(); startDraw(); }
       } else if (key === 'n') {
         if (state.phase === 'winner' && !state.overlay) { event.preventDefault(); nextDraw(); }

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, act, cleanup } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import App from './App';
 import { createDefaultRecord, DRAW_STORAGE_KEY } from './draw/persistence';
 
@@ -85,5 +86,27 @@ describe('App draw controls', () => {
     render(<App />);
     expect(screen.getByRole('status')).toHaveTextContent(/change the range or reset draw history/i);
     expect(screen.getByRole('button', { name: /draw a lucky lantern/i })).toBeDisabled();
+  });
+
+  it('lets Space activate a focused History or Sound button without starting a draw', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    render(<App />);
+    screen.getByRole('button', { name: /winner history/i }).focus();
+    await user.keyboard(' ');
+    expect(screen.getByRole('dialog', { name: /winner history/i })).toBeInTheDocument();
+    expect(localStorage.getItem(DRAW_STORAGE_KEY)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /close winner history/i }));
+    screen.getByRole('button', { name: /mute sound/i }).focus();
+    await user.keyboard(' ');
+    expect(JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!).settings.soundEnabled).toBe(false);
+    expect(JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!).winnerHistory).toHaveLength(0);
+  });
+
+  it('shows an inline notice when the Fullscreen API is unavailable', async () => {
+    Object.defineProperty(document.documentElement, 'requestFullscreen', { configurable: true, value: undefined });
+    render(<App />);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /enter fullscreen/i })); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Fullscreen is unavailable in this browser.');
   });
 });
