@@ -1,6 +1,7 @@
 import type { DrawPhase, WinnerRecord } from '../draw/types';
 import { FirefliesCanvas } from './FirefliesCanvas';
 import { LanternField } from './LanternField';
+import { WinnerReveal } from './WinnerReveal';
 import '../styles/tokens.css';
 import '../styles/stage.css';
 
@@ -69,18 +70,7 @@ export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, r
           </section>
         )}
 
-        {isWinner && activeWinner && (
-          <section className="stage-winner" aria-label="Lucky draw winner" aria-live="polite">
-            <p className="stage-winner__congratulations">CONGRATULATIONS</p>
-            <p className="stage-winner__label">LUCKY NUMBER</p>
-            <strong className="stage-winner__number">{activeWinner.number}</strong>
-            {activeWinner.name && <p className="stage-winner__name">{activeWinner.name}</p>}
-            <div className="stage-winner__actions">
-              <button className="stage-button stage-button--primary" type="button" onClick={onNext}>NEXT DRAW</button>
-              <button className="stage-button stage-button--secondary" type="button" onClick={onHistory}>VIEW WINNERS</button>
-            </div>
-          </section>
-        )}
+        {isWinner && activeWinner && <WinnerReveal winner={activeWinner} onNext={onNext} onHistory={onHistory} />}
       </div>
     </main>
   );
