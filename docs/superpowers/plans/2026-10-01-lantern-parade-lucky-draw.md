@@ -162,13 +162,14 @@ Phase timing is 1100ms awakening, 2200ms searching, 1400ms selection, 1400ms rev
 
 ## Task 6: Add keyboard, fullscreen, sound, and application wiring
 
-**Files:** modify `src/App.tsx`, create `src/hooks/useFullscreen.ts`, and `src/components/AudioController.ts`; add keyboard and fullscreen tests.
+**Files:** modify `src/App.tsx` and add stage control/notice props in `src/components/LanternStage.tsx`; create `src/hooks/useFullscreen.ts` and `src/components/AudioController.ts`; add keyboard and fullscreen tests.
 
 **Interfaces:** `useFullscreen()` returns `{ isFullscreen, enterFullscreen, exitFullscreen }`. `AudioController` exposes `initialize`, `playSearchingCue`, `playWinnerCue`, `setMuted`, and `dispose`.
 
 - [ ] Test shortcuts with a focused input and without one. Confirm SPACE starts only from idle, N returns to idle from winner, A/H toggle panels, M toggles sound, and F requests fullscreen.
 - [ ] Implement keyboard handling with cleanup. Ignore shortcuts when focus is in editable fields and ignore draw starts while the draw is locked.
 - [ ] Test fullscreen state synchronization and implement enter/exit with the Fullscreen API. Leave ESC handling to browser fullscreen behavior while syncing the stage on `fullscreenchange`.
+- [ ] Add visible, accessible controls for settings, sound, and fullscreen outside presentation mode. Hide the operator controls in fullscreen and show inline storage and empty-pool guidance on the stage.
 - [ ] Implement low-volume Web Audio tones only after the first user interaction. Test mute state and no-throw fallback when Web Audio is unavailable.
 - [ ] Wire record save before reducer phase start. On storage failure, show an inline error and do not begin a draw.
 - [ ] Test idle -> draw -> winner -> next draw -> second draw with distinct winners and persisted history. Test refresh recovery and rapid clicks.
