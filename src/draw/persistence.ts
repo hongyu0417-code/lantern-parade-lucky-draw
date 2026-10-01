@@ -159,7 +159,11 @@ export function readDrawRecord(storage: Storage): PersistedDrawRecord {
     const serialized = storage.getItem(DRAW_STORAGE_KEY);
     if (!serialized) return createDefaultRecord();
     const parsed: unknown = JSON.parse(serialized);
-    return isPersistedRecord(parsed) ? parsed : createDefaultRecord();
+    if (!isPersistedRecord(parsed)) return createDefaultRecord();
+    return {
+      ...parsed,
+      availableNumbers: eligibleSource(parsed.settings, parsed.winnerHistory),
+    };
   } catch {
     return createDefaultRecord();
   }

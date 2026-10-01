@@ -76,6 +76,20 @@ describe('persisted draw records', () => {
     expect(readDrawRecord(storage)).toEqual(createDefaultRecord());
   });
 
+  it('rebuilds eligibility when saved pool data conflicts with the source or winner history', () => {
+    const storage = memoryStorage();
+    const fresh = createDefaultRecord();
+    storage.setItem('lantern-parade-draw-v1', JSON.stringify({ ...fresh, availableNumbers: [] }));
+    expect(readDrawRecord(storage).availableNumbers).toHaveLength(300);
+
+    const drawn = reserveDraw(fresh, () => 0, 'first');
+    storage.setItem('lantern-parade-draw-v1', JSON.stringify({ ...drawn, availableNumbers: fresh.availableNumbers }));
+    const restored = readDrawRecord(storage);
+    expect(restored.winnerHistory).toEqual(drawn.winnerHistory);
+    expect(restored.availableNumbers).toHaveLength(299);
+    expect(restored.availableNumbers.some(({ number }) => number === '001')).toBe(false);
+  });
+
   it('propagates storage write failure so draw presentation can be stopped', () => {
     const storage = memoryStorage();
     storage.setItem = vi.fn(() => { throw new Error('Quota exceeded'); });
