@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { DrawPhase, WinnerRecord } from '../draw/types';
 import { FirefliesCanvas } from './FirefliesCanvas';
 import { LanternField } from './LanternField';
@@ -12,7 +13,18 @@ type LanternStageProps = {
   onNext: () => void;
   onHistory: () => void;
   reducedMotion: boolean;
+  emptyPool: boolean;
+  notice: string | null;
+  isFullscreen: boolean;
+  soundEnabled: boolean;
+  onSettings: () => void;
+  onSound: () => void;
+  onFullscreen: () => void;
 };
+
+const toolbarStyle: CSSProperties = { position: 'relative', zIndex: 6, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.7rem', padding: '0 1.5rem 1.5rem' };
+const toolButtonStyle: CSSProperties = { color: '#fff0ca', border: '1px solid rgba(255,228,166,.6)', background: 'rgba(3,18,38,.78)', borderRadius: 3, padding: '0.6rem 1rem', cursor: 'pointer', fontSize: '.82rem', letterSpacing: '.1em' };
+const noticeStyle: CSSProperties = { maxWidth: 680, margin: '1.5rem auto 0', padding: '.8rem 1.2rem', color: '#fff0ca', background: 'rgba(4,18,37,.85)', border: '1px solid rgba(255,228,166,.55)', lineHeight: 1.5 };
 
 const phaseMessages: Partial<Record<DrawPhase, string>> = {
   awakening: 'The lanterns are waking',
@@ -21,7 +33,7 @@ const phaseMessages: Partial<Record<DrawPhase, string>> = {
   revealing: 'The lucky number is appearing',
 };
 
-export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, reducedMotion }: LanternStageProps) {
+export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice, isFullscreen, soundEnabled, onSettings, onSound, onFullscreen }: LanternStageProps) {
   const isIdle = phase === 'idle';
   const isWinner = phase === 'winner';
   const inSequence = !isIdle && !isWinner;
@@ -47,11 +59,12 @@ export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, r
             <p className="stage-intro__kicker">A NIGHT OF LIGHT & FORTUNE</p>
             <h1 id="lucky-draw-title">LUCKY <em>DRAW</em></h1>
             <p className="stage-intro__line">Every lantern carries a little luck.</p>
-            <button className="stage-button stage-button--primary" type="button" onClick={onDraw}>
+            <button className="stage-button stage-button--primary" type="button" onClick={onDraw} disabled={emptyPool}>
               <span className="stage-button__star" aria-hidden="true">✦</span>
               DRAW A LUCKY LANTERN
               <span className="stage-button__star" aria-hidden="true">✦</span>
             </button>
+            {emptyPool && <p role="status" style={noticeStyle}>No eligible lanterns remain. Change the range or reset draw history in Operator settings.</p>}
           </section>
         )}
 
@@ -71,7 +84,14 @@ export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, r
         )}
 
         {isWinner && activeWinner && <WinnerReveal winner={activeWinner} onNext={onNext} onHistory={onHistory} />}
+        {notice && <p role="alert" style={noticeStyle}>{notice}</p>}
       </div>
+      {!isFullscreen && <nav aria-label="Operator controls" style={toolbarStyle}>
+        <button type="button" style={toolButtonStyle} onClick={onSettings} aria-label="Operator settings">SETTINGS · A</button>
+        <button type="button" style={toolButtonStyle} onClick={onHistory} aria-label="Winner history">HISTORY · H</button>
+        <button type="button" style={toolButtonStyle} onClick={onSound} aria-label={soundEnabled ? 'Mute sound' : 'Enable sound'}>{soundEnabled ? 'SOUND ON' : 'SOUND OFF'} · M</button>
+        <button type="button" style={toolButtonStyle} onClick={onFullscreen} aria-label="Enter fullscreen">FULLSCREEN · F</button>
+      </nav>}
     </main>
   );
 }
