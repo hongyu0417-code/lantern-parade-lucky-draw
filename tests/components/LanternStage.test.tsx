@@ -24,6 +24,8 @@ describe('LanternStage', () => {
     render(<LanternStage phase="idle" activeWinner={null} onDraw={onDraw} onNext={vi.fn()} onHistory={vi.fn()} reducedMotion />);
 
     expect(screen.getByRole('heading', { name: 'LUCKY DRAW' })).toBeInTheDocument();
+    expect(screen.queryByText('LIGHT THE NIGHT')).not.toBeInTheDocument();
+    expect(screen.queryByText('FOLLOW YOUR FORTUNE')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'DRAW A LUCKY LANTERN' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'DRAW A LUCKY LANTERN' })).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'DRAW A LUCKY LANTERN' }));

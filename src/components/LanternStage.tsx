@@ -82,12 +82,6 @@ export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, r
           </section>
         )}
       </div>
-
-      <footer className="stage-footer" aria-hidden="true">
-        <span>LIGHT THE NIGHT</span>
-        <span className="stage-footer__ornament">✦</span>
-        <span>FOLLOW YOUR FORTUNE</span>
-      </footer>
     </main>
   );
 }
