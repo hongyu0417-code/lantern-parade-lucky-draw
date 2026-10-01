@@ -49,6 +49,18 @@ describe('parseParticipantsCsv', () => {
       errors: [],
     });
   });
+
+  it('reports an unclosed quoted field instead of swallowing following participant rows', () => {
+    const parsed = parseParticipantsCsv('number,name\n001,"Ada\n002,Ben');
+    expect(parsed.participants).toEqual([]);
+    expect(parsed.errors).toEqual([expect.stringMatching(/row 2.*quote/i)]);
+  });
+
+  it('reports misplaced quote characters in a field', () => {
+    const parsed = parseParticipantsCsv('number,name\n001,Ad"a');
+    expect(parsed.participants).toEqual([]);
+    expect(parsed.errors).toEqual(['Row 2: malformed quote syntax.']);
+  });
 });
 
 describe('selectWinner', () => {

@@ -20,3 +20,20 @@ Before implementation, `npm test -- tests/draw/pool.test.ts` failed during modul
 ## Concerns
 
 CSV parsing reports unmatched quotes as field content rather than a dedicated syntax error; malformed row shape and missing participant numbers are reported with source row numbers. No additional issues were observed in the requested verification.
+
+## Round 1 review fix: CSV quote syntax
+
+### Finding addressed
+
+The CSV scanner previously treated an unclosed quote as a valid multiline field, allowing `number,name\n001,"Ada\n002,Ben` to merge the second participant into the first name without an error. It also did not reject quotes embedded in unquoted values. The scanner now reports unclosed and misplaced quote syntax with the source row and excludes the malformed record, so subsequent participant lines are not silently absorbed.
+
+### Test-first evidence
+
+Added the unclosed-quote regression and misplaced-quote test to `tests/draw/pool.test.ts`. Before changing the parser, `npm test -- tests/draw/pool.test.ts` failed: the unclosed-quote input returned one participant whose name contained both rows and no error. After the parser update, both quote syntax tests pass.
+
+### Verification commands and outputs
+
+- `npm test -- tests/draw/pool.test.ts`: passed, 17 tests.
+- `npm test -- --run`: passed, 2 files and 18 tests.
+- `npm run typecheck`: passed.
+- `npm run build`: passed.

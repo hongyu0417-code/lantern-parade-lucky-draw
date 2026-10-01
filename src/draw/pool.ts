@@ -21,46 +21,89 @@ export function buildNumericPool(start: string, end: string): Participant[] {
   return participants;
 }
 
-function parseCsvRows(input: string): string[][] {
+function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[]; errors: string[] } {
   const rows: string[][] = [];
+  const rowLines: number[] = [];
+  const errors: string[] = [];
   let row: string[] = [];
   let field = '';
   let quoted = false;
+  let afterQuote = false;
+  let invalidRow = false;
+  let line = 1;
+  let rowStartLine = 1;
+  let quoteStartLine = 1;
+
+  const finishRow = () => {
+    row.push(field.trim());
+    if (invalidRow) {
+      errors.push(`Row ${rowStartLine}: malformed quote syntax.`);
+    } else {
+      rows.push(row);
+      rowLines.push(rowStartLine);
+    }
+    row = [];
+    field = '';
+    afterQuote = false;
+    invalidRow = false;
+  };
 
   for (let index = 0; index < input.length; index += 1) {
     const char = input[index];
-    if (char === '"') {
-      if (quoted && input[index + 1] === '"') {
+    if (quoted) {
+      if (char === '"' && input[index + 1] === '"') {
         field += '"';
         index += 1;
+      } else if (char === '"') {
+        quoted = false;
+        afterQuote = true;
       } else {
-        quoted = !quoted;
+        field += char;
+        if (char === '\n') line += 1;
+        else if (char === '\r' && input[index + 1] !== '\n') line += 1;
       }
-    } else if (char === ',' && !quoted) {
+    } else if (char === '"') {
+      if (!afterQuote && field.trim() === '') {
+        quoted = true;
+        quoteStartLine = line;
+      } else {
+        invalidRow = true;
+        field += char;
+      }
+    } else if (afterQuote && char !== ',' && char !== '\n' && char !== '\r' && !/\s/.test(char)) {
+      invalidRow = true;
+      field += char;
+      afterQuote = false;
+    } else if (char === ',' ) {
       row.push(field.trim());
       field = '';
-    } else if ((char === '\n' || char === '\r') && !quoted) {
+      afterQuote = false;
+    } else if (char === '\n' || char === '\r') {
       if (char === '\r' && input[index + 1] === '\n') index += 1;
-      row.push(field.trim());
-      rows.push(row);
-      row = [];
-      field = '';
+      finishRow();
+      line += 1;
+      rowStartLine = line;
     } else {
       field += char;
     }
   }
-  row.push(field.trim());
-  rows.push(row);
-  return rows;
+  if (quoted) {
+    errors.push(`Row ${rowStartLine}: unclosed quote starting on row ${quoteStartLine}.`);
+  } else if (row.length > 0 || field.length > 0 || input.length === 0 || !/[\r\n]$/.test(input)) {
+    finishRow();
+  }
+  return {
+    rows: rows.map((cells, index) => ({ cells, line: rowLines[index] })),
+    errors,
+  };
 }
 
 export function parseParticipantsCsv(input: string): { participants: Participant[]; errors: string[] } {
-  const parsedRows = parseCsvRows(input);
-  const meaningfulRows = parsedRows
-    .map((cells, index) => ({ cells, line: index + 1 }))
+  const parsed = parseCsvRows(input);
+  const meaningfulRows = parsed.rows
     .filter(({ cells }) => cells.some((cell) => cell.length > 0));
   const participants: Participant[] = [];
-  const errors: string[] = [];
+  const errors: string[] = [...parsed.errors];
   if (meaningfulRows.length === 0) return { participants, errors };
 
   const firstCells = meaningfulRows[0].cells.map((cell) => cell.toLowerCase());
