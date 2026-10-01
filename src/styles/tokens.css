@@ -1,0 +1,25 @@
+:root {
+  color-scheme: dark;
+  --night-ink: #06162a;
+  --night-blue: #102947;
+  --moon-cream: #fff0ca;
+  --lantern-gold: #efbd69;
+  --lantern-light: #ffe4a6;
+  --burnt-amber: #bb7935;
+  --quiet-cream: #e6d8bb;
+  --stage-serif: Georgia, 'Times New Roman', serif;
+  --stage-sans: Avenir, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--stage-sans);
+  color: var(--moon-cream);
+  background: var(--night-ink);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body { margin: 0; min-width: 320px; }
+
+button { font: inherit; }
+
+:focus-visible { outline: 2px solid var(--lantern-light); outline-offset: 5px; }
