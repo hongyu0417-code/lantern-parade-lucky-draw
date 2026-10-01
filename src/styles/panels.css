@@ -44,8 +44,8 @@
 .operator-panel__toggle input { width: 20px; height: 20px; margin: 0; accent-color: var(--lantern-gold); }
 .operator-panel__errors { padding: 8px 14px; border-left: 3px solid #ffbd91; background: rgba(154, 56, 36, .24); color: #ffe0d0; font-size: .85rem; line-height: 1.4; }
 .operator-panel__errors p { margin: 6px 0; }
-.operator-panel button:not(.operator-dialog__close) { min-height: 44px; border: 1px solid rgba(239, 189, 105, .48); border-radius: 3px; padding: 9px 15px; background: rgba(15, 41, 68, .9); color: var(--moon-cream); cursor: pointer; font-size: .76rem; font-weight: 700; letter-spacing: .08em; }
-.operator-panel button:not(.operator-dialog__close):hover:not(:disabled) { background: rgba(239, 189, 105, .18); }
+.operator-panel__form button, .operator-panel__maintenance button { min-height: 44px; border: 1px solid rgba(239, 189, 105, .48); border-radius: 3px; padding: 9px 15px; background: rgba(15, 41, 68, .9); color: var(--moon-cream); cursor: pointer; font-size: .76rem; font-weight: 700; letter-spacing: .08em; }
+.operator-panel__form button:hover:not(:disabled), .operator-panel__maintenance button:hover:not(:disabled) { background: rgba(239, 189, 105, .18); }
 .operator-panel button:disabled, .operator-panel input:disabled, .operator-panel textarea:disabled { cursor: not-allowed; opacity: .5; }
 .operator-panel .operator-panel__save { margin-top: 5px; background: linear-gradient(130deg, #f7d494, #dea84f); color: #152238; }
 .operator-panel .operator-panel__save:hover:not(:disabled) { background: #ffe0a0; }
