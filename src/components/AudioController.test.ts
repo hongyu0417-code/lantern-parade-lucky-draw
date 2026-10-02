@@ -3,39 +3,82 @@ import { AudioController } from './AudioController';
 
 afterEach(() => vi.unstubAllGlobals());
 
+function fakeAudio() {
+  const oscillators: Array<{ frequency: { value: number }; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
+  const gains: Array<{ gain: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> }; disconnect: ReturnType<typeof vi.fn> }> = [];
+  const close = vi.fn().mockResolvedValue(undefined);
+  class FakeAudioContext {
+    currentTime = 0;
+    destination = {};
+    createOscillator = vi.fn(() => {
+      const oscillator = { type: 'sine', frequency: { value: 0 }, connect: vi.fn(), start: vi.fn(), stop: vi.fn(), disconnect: vi.fn() };
+      oscillators.push(oscillator);
+      return oscillator;
+    });
+    createGain = vi.fn(() => {
+      const gain = { gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(), disconnect: vi.fn() };
+      gains.push(gain);
+      return gain;
+    });
+    resume = vi.fn().mockResolvedValue(undefined);
+    close = close;
+  }
+  vi.stubGlobal('AudioContext', FakeAudioContext);
+  return { oscillators, gains, close };
+}
+
 describe('AudioController', () => {
-  it('is silent before initialization, respects mute, and tolerates absent Web Audio', () => {
+  it('is silent before initialization and tolerates absent Web Audio', () => {
     const audio = new AudioController();
     expect(() => audio.playSearchingCue()).not.toThrow();
+    expect(() => audio.playSelectionCue()).not.toThrow();
     expect(() => audio.initialize()).not.toThrow();
-    audio.setMuted(true);
-    expect(() => audio.playWinnerCue()).not.toThrow();
     expect(() => audio.dispose()).not.toThrow();
   });
 
-  it('plays low-volume cues after initialization and mutes subsequent cues', () => {
-    const start = vi.fn();
-    const createOscillator = vi.fn(() => ({ type: 'sine', frequency: { value: 0 }, connect: vi.fn(), start, stop: vi.fn() }));
-    const createGain = vi.fn(() => ({ gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn() }));
-    class FakeAudioContext {
-      currentTime = 0;
-      destination = {};
-      createOscillator = createOscillator;
-      createGain = createGain;
-      resume = vi.fn().mockResolvedValue(undefined);
-      close = vi.fn().mockResolvedValue(undefined);
-    }
-    vi.stubGlobal('AudioContext', FakeAudioContext);
+  it('starts quiet ambient audio on initialization and plays distinct phase cues', () => {
+    const { oscillators, gains } = fakeAudio();
+    const audio = new AudioController();
+    expect(oscillators).toHaveLength(0);
+    audio.initialize();
+    expect(oscillators).toHaveLength(2);
+    expect(gains[0].gain.setValueAtTime).toHaveBeenCalledWith(expect.any(Number), expect.any(Number));
+    audio.playSearchingCue();
+    audio.playSelectionCue();
+    audio.playWinnerCue();
+    expect(oscillators).toHaveLength(7);
+    expect(oscillators[2].frequency.value).not.toBe(oscillators[3].frequency.value);
+    audio.dispose();
+  });
+
+  it('immediately stops scheduled cues and ambient on mute, then resumes only ambient', () => {
+    const { oscillators, gains } = fakeAudio();
     const audio = new AudioController();
     audio.initialize();
-    audio.playSearchingCue();
-    expect(start).toHaveBeenCalledOnce();
+    audio.playWinnerCue();
+    expect(oscillators).toHaveLength(5);
     audio.setMuted(true);
-    audio.playWinnerCue();
-    expect(start).toHaveBeenCalledOnce();
+    expect(oscillators.every(({ stop, disconnect }) => stop.mock.calls.length > 0 && disconnect.mock.calls.length > 0)).toBe(true);
+    expect(gains.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true);
+    audio.playSelectionCue();
+    expect(oscillators).toHaveLength(5);
     audio.setMuted(false);
-    audio.playWinnerCue();
-    expect(start).toHaveBeenCalledTimes(4);
+    expect(oscillators).toHaveLength(7);
+    expect(oscillators.slice(5).every(({ start }) => start.mock.calls.length === 1)).toBe(true);
     audio.dispose();
+  });
+
+  it('does not start ambient while muted and disposes all active nodes and context', () => {
+    const { oscillators, gains, close } = fakeAudio();
+    const audio = new AudioController();
+    audio.setMuted(true);
+    audio.initialize();
+    expect(oscillators).toHaveLength(0);
+    audio.setMuted(false);
+    expect(oscillators).toHaveLength(2);
+    audio.dispose();
+    expect(oscillators.every(({ stop, disconnect }) => stop.mock.calls.length > 0 && disconnect.mock.calls.length > 0)).toBe(true);
+    expect(gains.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
   });
 });

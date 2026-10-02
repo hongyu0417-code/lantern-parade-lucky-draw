@@ -1,4 +1,4 @@
-import { buildNumericPool, selectWinner } from './pool';
+import { buildNumericPool, MAX_PARTICIPANTS, selectWinner } from './pool';
 import type { DrawSettings, Participant, PersistedDrawRecord, WinnerRecord } from './types';
 
 export const DRAW_STORAGE_KEY = 'lantern-parade-draw-v1';
@@ -12,6 +12,9 @@ const DEFAULT_SETTINGS: DrawSettings = {
 };
 
 function activeSource(settings: DrawSettings): Participant[] {
+  if (settings.participants && settings.participants.length > MAX_PARTICIPANTS) {
+    throw new Error('A draw pool cannot exceed 10,000 participants.');
+  }
   return settings.participants ?? buildNumericPool(settings.startNumber, settings.endNumber);
 }
 
@@ -123,11 +126,13 @@ function isSettings(value: unknown): value is DrawSettings {
     : NaN;
   const validParticipants = participants === null
     || (Array.isArray(participants)
+      && participants.length <= MAX_PARTICIPANTS
       && participants.every(isParticipant)
       && new Set(participants.map((participant) => participant.number)).size === participants.length);
   return Number.isSafeInteger(start)
     && Number.isSafeInteger(end)
     && end >= start
+    && end - start < MAX_PARTICIPANTS
     && validParticipants
     && typeof value.preventDuplicates === 'boolean'
     && typeof value.soundEnabled === 'boolean';
@@ -138,6 +143,7 @@ function isPersistedRecord(value: unknown): value is PersistedDrawRecord {
     || value.version !== 1
     || !isSettings(value.settings)
     || !Array.isArray(value.availableNumbers)
+    || value.availableNumbers.length > MAX_PARTICIPANTS
     || !value.availableNumbers.every(isParticipant)
     || new Set(value.availableNumbers.map((participant) => participant.number)).size !== value.availableNumbers.length
     || !Array.isArray(value.winnerHistory)

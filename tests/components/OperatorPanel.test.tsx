@@ -75,6 +75,16 @@ describe('OperatorPanel', () => {
     expect(screen.getByRole('button', { name: 'Reset all draw data' })).toBeDisabled();
   });
 
+  it('shows an inline range-cap error and does not submit an oversized range', () => {
+    const actions = callbacks();
+    render(<OperatorPanel settings={settings} remainingCount={300} winnerCount={0} isDrawActive={false} validationErrors={[]} {...actions} />);
+    fireEvent.change(screen.getByLabelText('Start number'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('End number'), { target: { value: '10001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save draw pool' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/10,?000/);
+    expect(actions.onSave).not.toHaveBeenCalled();
+  });
+
   it('starts keyboard focus inside the panel and keeps Tab within it', () => {
     render(<OperatorPanel settings={settings} remainingCount={300} winnerCount={0} isDrawActive={false} validationErrors={[]} {...callbacks()} />);
     const close = screen.getByRole('button', { name: 'Close operator settings' });

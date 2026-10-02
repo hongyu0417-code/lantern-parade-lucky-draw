@@ -55,19 +55,21 @@ export default function App() {
     audio.current?.setMuted(!state.record.settings.soundEnabled);
     if (previousPhase.current !== state.phase) {
       if (state.phase === 'searching') audio.current?.playSearchingCue();
+      if (state.phase === 'selecting') audio.current?.playSelectionCue();
       if (state.phase === 'winner' && previousPhase.current !== 'idle') audio.current?.playWinnerCue();
     }
     previousPhase.current = state.phase;
   }, [state.phase, state.record.settings.soundEnabled]);
 
-  const persist = useCallback((record: PersistedDrawRecord): boolean => {
+  const persist = useCallback((record: PersistedDrawRecord, target: 'stage' | 'operator' = 'stage'): boolean => {
     try {
       writeDrawRecord(window.localStorage, record);
       recordRef.current = record;
       setNotice(null);
       return true;
     } catch {
-      setNotice(SAVE_ERROR);
+      if (target === 'operator') setValidationErrors([SAVE_ERROR]);
+      else setNotice(SAVE_ERROR);
       return false;
     }
   }, []);
@@ -120,10 +122,11 @@ export default function App() {
       .catch(() => setNotice('Exit fullscreen to view winner history.'));
   }, [exitFullscreen, isFullscreen, toggleOverlay]);
 
-  const updateRecord = useCallback((record: PersistedDrawRecord) => {
-    if (!persist(record)) return;
+  const updateRecord = useCallback((record: PersistedDrawRecord): boolean => {
+    if (!persist(record, 'operator')) return false;
     setValidationErrors([]);
     dispatch({ type: 'UPDATE_RECORD', record });
+    return true;
   }, [persist]);
 
   useEffect(() => {
@@ -152,12 +155,13 @@ export default function App() {
     catch { setValidationErrors(['Please check the range and imported participant list.']); }
   };
 
-  const undo = () => { updateRecord(undoLastDraw(recordRef.current)); drawLocked.current = false; };
-  const resetHistory = () => { updateRecord(resetDrawHistory(recordRef.current)); drawLocked.current = false; };
+  const undo = () => { if (updateRecord(undoLastDraw(recordRef.current))) drawLocked.current = false; };
+  const resetHistory = () => { if (updateRecord(resetDrawHistory(recordRef.current))) drawLocked.current = false; };
   const resetAll = () => {
-    updateRecord(resetAllDrawData());
-    drawLocked.current = false;
-    setOperatorPanelRevision((revision) => revision + 1);
+    if (updateRecord(resetAllDrawData())) {
+      drawLocked.current = false;
+      setOperatorPanelRevision((revision) => revision + 1);
+    }
   };
 
   return <>

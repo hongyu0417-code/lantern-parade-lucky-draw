@@ -2,6 +2,7 @@ import { fireEvent, render, screen, act, cleanup } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import { AudioController } from './components/AudioController';
 import { createDefaultRecord, DRAW_STORAGE_KEY } from './draw/persistence';
 
 beforeEach(() => {
@@ -44,6 +45,29 @@ describe('App draw controls', () => {
     fireEvent.click(screen.getByRole('button', { name: /draw a lucky lantern/i }));
     expect(screen.getByRole('alert')).toHaveTextContent(/save|storage/i);
     expect(screen.queryByLabelText(/drawing in progress/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a save failure inside operator settings without changing the saved pool', () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'a' });
+    fireEvent.change(screen.getByRole('textbox', { name: /end number/i }), { target: { value: '450' } });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full'); });
+    fireEvent.click(screen.getByRole('button', { name: /save draw pool/i }));
+    expect(screen.getByRole('dialog', { name: /operator settings/i }).querySelector('[role="alert"]')).toHaveTextContent(/save|storage/i);
+    expect(screen.getByRole('textbox', { name: /end number/i })).toHaveValue('450');
+    expect(localStorage.getItem(DRAW_STORAGE_KEY)).toBeNull();
+  });
+
+  it('keeps an unsaved form draft and shows an error when confirmed reset cannot persist', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'a' });
+    fireEvent.change(screen.getByRole('textbox', { name: /participants csv/i }), { target: { value: '777,Draft' } });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full'); });
+    fireEvent.click(screen.getByRole('button', { name: /reset all draw data/i }));
+    expect(screen.getByRole('textbox', { name: /participants csv/i })).toHaveValue('777,Draft');
+    expect(screen.getByRole('dialog', { name: /operator settings/i }).querySelector('[role="alert"]')).toHaveTextContent(/save|storage/i);
+    expect(localStorage.getItem(DRAW_STORAGE_KEY)).toBeNull();
   });
 
   it('uses shortcuts outside editable fields and ignores Space during a draw', () => {
@@ -124,5 +148,15 @@ describe('App draw controls', () => {
     render(<App />);
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /enter fullscreen/i })); });
     expect(screen.getByRole('alert')).toHaveTextContent('Fullscreen is unavailable in this browser.');
+  });
+
+  it('plays a selection cue when the draw reaches the selection phase', () => {
+    const selection = vi.spyOn(AudioController.prototype, 'playSelectionCue').mockImplementation(() => undefined);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /draw a lucky lantern/i }));
+    act(() => { vi.advanceTimersByTime(1100); });
+    expect(selection).not.toHaveBeenCalled();
+    act(() => { vi.advanceTimersByTime(2200); });
+    expect(selection).toHaveBeenCalledOnce();
   });
 });

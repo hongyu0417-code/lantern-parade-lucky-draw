@@ -1,7 +1,11 @@
-/** Small, optional ceremonial cues. A context is created only after a user gesture. */
+type Voice = { oscillator: OscillatorNode; gain: GainNode };
+
+/** Quiet synthesized ambience and ceremonial cues, created after a user gesture. */
 export class AudioController {
   private context: AudioContext | null = null;
   private muted = false;
+  private active = new Set<Voice>();
+  private ambient = new Set<Voice>();
 
   initialize(): void {
     if (this.context) return;
@@ -10,42 +14,78 @@ export class AudioController {
     try {
       this.context = new AudioContextConstructor();
       void this.context.resume().catch(() => undefined);
+      this.startAmbient();
     } catch {
       this.context = null;
     }
   }
 
-  setMuted(muted: boolean): void { this.muted = muted; }
+  setMuted(muted: boolean): void {
+    if (this.muted === muted) return;
+    this.muted = muted;
+    if (muted) this.stopAll();
+    else this.startAmbient();
+  }
 
-  private tone(frequency: number, duration: number, startOffset = 0): void {
+  private release(voice: Voice): void {
+    if (!this.active.delete(voice)) return;
+    this.ambient.delete(voice);
+    voice.oscillator.disconnect();
+    voice.gain.disconnect();
+  }
+
+  private stopAll(): void {
+    for (const voice of [...this.active]) {
+      try { voice.oscillator.stop(); } catch { /* The node may already have ended. */ }
+      this.release(voice);
+    }
+  }
+
+  private voice(frequency: number, volume: number, duration?: number, startOffset = 0): void {
     if (!this.context || this.muted) return;
     try {
       const context = this.context;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       const start = context.currentTime + startOffset;
+      const voice = { oscillator, gain };
       oscillator.type = 'sine';
       oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.055, start + 0.035);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      if (duration === undefined) {
+        gain.gain.setValueAtTime(volume, start);
+        this.ambient.add(voice);
+      } else {
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + 0.035);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      }
       oscillator.connect(gain);
       gain.connect(context.destination);
+      oscillator.onended = () => this.release(voice);
       oscillator.start(start);
-      oscillator.stop(start + duration + 0.01);
+      if (duration !== undefined) oscillator.stop(start + duration + 0.01);
+      this.active.add(voice);
     } catch {
       // Sound is optional. Browsers may suspend or deny an audio context.
     }
   }
 
-  playSearchingCue(): void { this.tone(392, 0.32); }
+  private startAmbient(): void {
+    if (!this.context || this.muted || this.ambient.size > 0) return;
+    this.voice(110, 0.0035);
+    this.voice(164.81, 0.0025);
+  }
+
+  playSearchingCue(): void { this.voice(392, 0.055, 0.32); }
+  playSelectionCue(): void { this.voice(587.33, 0.045, 0.22); }
   playWinnerCue(): void {
-    this.tone(523.25, 0.75);
-    this.tone(659.25, 0.8, 0.12);
-    this.tone(783.99, 0.9, 0.24);
+    this.voice(523.25, 0.055, 0.75);
+    this.voice(659.25, 0.055, 0.8, 0.12);
+    this.voice(783.99, 0.055, 0.9, 0.24);
   }
 
   dispose(): void {
+    this.stopAll();
     if (this.context) void this.context.close().catch(() => undefined);
     this.context = null;
   }

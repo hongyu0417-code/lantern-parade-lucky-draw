@@ -17,6 +17,11 @@ describe('buildNumericPool', () => {
   it('rejects a reversed range', () => {
     expect(() => buildNumericPool('10', '2')).toThrow(/end/i);
   });
+
+  it('rejects a range above 10,000 before constructing participants', () => {
+    expect(buildNumericPool('1', '10000')).toHaveLength(10000);
+    expect(() => buildNumericPool('1', '10001')).toThrow(/10,?000/);
+  });
 });
 
 describe('parseParticipantsCsv', () => {
@@ -60,6 +65,13 @@ describe('parseParticipantsCsv', () => {
     const parsed = parseParticipantsCsv('number,name\n001,Ad"a');
     expect(parsed.participants).toEqual([]);
     expect(parsed.errors).toEqual(['Row 2: malformed quote syntax.']);
+  });
+
+  it('rejects more than 10,000 imported participants without returning a partial pool', () => {
+    const input = Array.from({ length: 10001 }, (_, index) => String(index + 1)).join('\n');
+    const parsed = parseParticipantsCsv(input);
+    expect(parsed.participants).toEqual([]);
+    expect(parsed.errors.join(' ')).toMatch(/10,?000/);
   });
 });
 

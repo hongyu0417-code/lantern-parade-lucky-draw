@@ -1,5 +1,7 @@
 import type { Participant } from './types';
 
+export const MAX_PARTICIPANTS = 10_000;
+
 export function buildNumericPool(start: string, end: string): Participant[] {
   const validInteger = /^\d+$/;
   if (!validInteger.test(start) || !validInteger.test(end)) {
@@ -12,6 +14,7 @@ export function buildNumericPool(start: string, end: string): Participant[] {
     throw new Error('Start and end must be safe integers.');
   }
   if (last < first) throw new Error('End must be greater than or equal to start.');
+  if (last - first >= MAX_PARTICIPANTS) throw new Error('A draw pool cannot exceed 10,000 participants.');
 
   const width = Math.max(start.length, end.length);
   const participants: Participant[] = [];
@@ -33,6 +36,8 @@ function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[
   let line = 1;
   let rowStartLine = 1;
   let quoteStartLine = 1;
+  let tooManyRows = false;
+  let meaningfulCount = 0;
 
   const finishRow = () => {
     row.push(field.trim());
@@ -41,6 +46,8 @@ function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[
     } else {
       rows.push(row);
       rowLines.push(rowStartLine);
+      if (row.some((cell) => cell.length > 0)) meaningfulCount += 1;
+      if (meaningfulCount > MAX_PARTICIPANTS + 1) tooManyRows = true;
     }
     row = [];
     field = '';
@@ -48,7 +55,7 @@ function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[
     invalidRow = false;
   };
 
-  for (let index = 0; index < input.length; index += 1) {
+  for (let index = 0; index < input.length && !tooManyRows; index += 1) {
     const char = input[index];
     if (quoted) {
       if (char === '"' && input[index + 1] === '"') {
@@ -92,6 +99,7 @@ function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[
   } else if (row.length > 0 || field.length > 0 || input.length === 0 || !/[\r\n]$/.test(input)) {
     finishRow();
   }
+  if (tooManyRows) errors.push('A CSV pool cannot exceed 10,000 participants.');
   return {
     rows: rows.map((cells, index) => ({ cells, line: rowLines[index] })),
     errors,
@@ -110,6 +118,9 @@ export function parseParticipantsCsv(input: string): { participants: Participant
   const hasHeader = firstCells[0] === 'number' || firstCells[0] === 'id';
   const expectedColumns = hasHeader ? meaningfulRows[0].cells.length : undefined;
   const dataRows = hasHeader ? meaningfulRows.slice(1) : meaningfulRows;
+  if (dataRows.length > MAX_PARTICIPANTS || errors.some((error) => error.includes('10,000 participants'))) {
+    return { participants: [], errors: [...errors, ...(dataRows.length > MAX_PARTICIPANTS && !errors.some((error) => error.includes('10,000 participants')) ? ['A CSV pool cannot exceed 10,000 participants.'] : [])] };
+  }
   const seen = new Set<string>();
 
   for (const { cells, line } of dataRows) {

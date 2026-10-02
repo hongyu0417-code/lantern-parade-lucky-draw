@@ -95,4 +95,18 @@ describe('persisted draw records', () => {
     storage.setItem = vi.fn(() => { throw new Error('Quota exceeded'); });
     expect(() => writeDrawRecord(storage, createDefaultRecord())).toThrow('Quota exceeded');
   });
+
+  it('recovers from saved ranges, imported lists, and available pools above the cap', () => {
+    const storage = memoryStorage();
+    const base = createDefaultRecord();
+    const oversized = Array.from({ length: 10001 }, (_, index) => ({ number: String(index) }));
+    for (const invalid of [
+      { ...base, settings: { ...base.settings, endNumber: '10001' } },
+      { ...base, settings: { ...base.settings, participants: oversized } },
+      { ...base, availableNumbers: oversized },
+    ]) {
+      storage.setItem('lantern-parade-draw-v1', JSON.stringify(invalid));
+      expect(readDrawRecord(storage)).toEqual(createDefaultRecord());
+    }
+  });
 });

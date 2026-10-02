@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react';
-import { parseParticipantsCsv } from '../draw/pool';
+import { MAX_PARTICIPANTS, parseParticipantsCsv } from '../draw/pool';
 import type { DrawSettings } from '../draw/types';
 import '../styles/panels.css';
 
@@ -65,6 +65,8 @@ export function OperatorPanel({
     const nextErrors: string[] = [];
     if (!validRange(startNumber, endNumber)) {
       nextErrors.push('Enter whole number bounds with an end number at least as large as the start.');
+    } else if (Number(endNumber) - Number(startNumber) >= MAX_PARTICIPANTS) {
+      nextErrors.push('A draw pool cannot exceed 10,000 participants.');
     }
     if (importPreview?.errors.length) nextErrors.push(...importPreview.errors);
     if (csv.trim() && importPreview?.participants.length === 0) {
