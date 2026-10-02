@@ -31,6 +31,7 @@ describe('App draw controls', () => {
     unmount();
     render(<App />);
     expect(screen.getByRole('region', { name: /lucky draw winner/i })).toHaveTextContent(first.activeWinner.number);
+    expect(document.querySelectorAll('.lantern-field--winner .floating-lantern--chosen')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: /next draw/i }));
     fireEvent.click(screen.getByRole('button', { name: /draw a lucky lantern/i }));
     finishDraw();

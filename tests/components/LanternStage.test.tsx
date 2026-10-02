@@ -40,7 +40,8 @@ describe('LanternStage', () => {
     expect(screen.getByText('007')).toBeInTheDocument();
     expect(screen.getByText('Amina')).toBeInTheDocument();
     expect(screen.getByText('CONGRATULATIONS')).toBeInTheDocument();
-    expect(container.querySelector('.floating-lantern--chosen')).not.toBeInTheDocument();
+    expect(container.querySelector('.lantern-field--winner')).toBeInTheDocument();
+    expect(container.querySelectorAll('.lantern-field--winner .floating-lantern--chosen')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'NEXT DRAW' }));
     fireEvent.click(screen.getByRole('button', { name: 'VIEW WINNERS' }));
     expect(onNext).toHaveBeenCalledOnce();

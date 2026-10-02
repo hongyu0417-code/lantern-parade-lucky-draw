@@ -49,7 +49,7 @@ export function LanternStage({ phase, activeWinner, animationCandidates, onSelec
       <div className="lantern-stage__art" aria-hidden="true" />
       <div className="lantern-stage__nightfall" aria-hidden="true" />
       <div className="lantern-stage__waterlight" aria-hidden="true" />
-      {(!inSequence || !activeWinner) && <LanternField phase={isWinner ? 'idle' : phase} chosenNumber={isWinner ? null : activeWinner?.number} />}
+      {(!inSequence || !activeWinner) && <LanternField phase={phase} chosenNumber={activeWinner?.number} />}
       {inSequence && activeWinner && <FlyingNumberLanterns phase={phase} candidates={animationCandidates} winner={activeWinner} onSelectorTick={onSelectorTick} />}
       <FirefliesCanvas intensity={inSequence ? 1 : isWinner ? 0.6 : 0.3} paused={reducedMotion} />
 
