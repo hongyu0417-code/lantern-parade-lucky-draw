@@ -24,6 +24,7 @@ export default function App() {
   const [state, dispatch] = useReducer(drawReducer, undefined, () => createDrawState(initialRecord()));
   const [notice, setNotice] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [operatorPanelRevision, setOperatorPanelRevision] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
   const drawLocked = useRef(false);
   const recordRef = useRef(state.record);
@@ -153,7 +154,11 @@ export default function App() {
 
   const undo = () => { updateRecord(undoLastDraw(recordRef.current)); drawLocked.current = false; };
   const resetHistory = () => { updateRecord(resetDrawHistory(recordRef.current)); drawLocked.current = false; };
-  const resetAll = () => { updateRecord(resetAllDrawData()); drawLocked.current = false; };
+  const resetAll = () => {
+    updateRecord(resetAllDrawData());
+    drawLocked.current = false;
+    setOperatorPanelRevision((revision) => revision + 1);
+  };
 
   return <>
     <LanternStage
@@ -164,6 +169,7 @@ export default function App() {
       onSettings={() => toggleOverlay('admin')} onSound={toggleSound} onFullscreen={requestFullscreen}
     />
     {!isFullscreen && state.overlay === 'admin' && <OperatorPanel
+      key={operatorPanelRevision}
       settings={state.record.settings} remainingCount={state.record.availableNumbers.length}
       winnerCount={state.record.winnerHistory.length} isDrawActive={state.phase !== 'idle' && state.phase !== 'winner'}
       validationErrors={validationErrors} onSave={saveSettings} onUndo={undo}

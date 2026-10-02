@@ -103,6 +103,22 @@ describe('App draw controls', () => {
     expect(JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!).winnerHistory).toHaveLength(0);
   });
 
+  it('clears the participant form when confirmed reset all restores default data', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'a' });
+    fireEvent.change(screen.getByRole('textbox', { name: /participants csv/i }), {
+      target: { value: '001,Amina Lee\n002,Ben Tan' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save draw pool/i }));
+    expect(screen.getByRole('textbox', { name: /participants csv/i })).toHaveValue('001,Amina Lee\n002,Ben Tan');
+
+    fireEvent.click(screen.getByRole('button', { name: /reset all draw data/i }));
+
+    expect(confirm).toHaveBeenCalledWith('Reset all draw data, including settings and imported participants?');
+    expect(screen.getByRole('textbox', { name: /participants csv/i })).toHaveValue('');
+  });
+
   it('shows an inline notice when the Fullscreen API is unavailable', async () => {
     Object.defineProperty(document.documentElement, 'requestFullscreen', { configurable: true, value: undefined });
     render(<App />);
