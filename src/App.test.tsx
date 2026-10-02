@@ -14,7 +14,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 function finishDraw() {
-  for (const delay of [1100, 2200, 1400, 1400]) act(() => { vi.advanceTimersByTime(delay); });
+  for (const delay of [1500, 2500, 2000, 2000, 1000, 700, 600, 700]) act(() => { vi.advanceTimersByTime(delay); });
 }
 
 describe('App draw controls', () => {
@@ -44,7 +44,7 @@ describe('App draw controls', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /draw a lucky lantern/i }));
     expect(screen.getByRole('alert')).toHaveTextContent(/save|storage/i);
-    expect(screen.queryByLabelText(/drawing in progress/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('flying-number-lanterns')).not.toBeInTheDocument();
   });
 
   it('shows a save failure inside operator settings without changing the saved pool', () => {
@@ -154,9 +154,70 @@ describe('App draw controls', () => {
     const selection = vi.spyOn(AudioController.prototype, 'playSelectionCue').mockImplementation(() => undefined);
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /draw a lucky lantern/i }));
-    act(() => { vi.advanceTimersByTime(1100); });
+    act(() => { vi.advanceTimersByTime(1500); });
     expect(selection).not.toHaveBeenCalled();
-    act(() => { vi.advanceTimersByTime(2200); });
+    act(() => { vi.advanceTimersByTime(2500); });
     expect(selection).toHaveBeenCalledOnce();
+  });
+
+  it('completes ten consecutive draws with visible eligible candidates and one locked winner each time', () => {
+    const pool = Array.from({ length: 40 }, (_, index) => ({ number: String(index + 1).padStart(3, '0'), name: `Guest ${index + 1}` }));
+    const record = createDefaultRecord();
+    record.settings.startNumber = '001';
+    record.settings.endNumber = '040';
+    record.settings.participants = pool;
+    record.availableNumbers = pool;
+    localStorage.setItem(DRAW_STORAGE_KEY, JSON.stringify(record));
+    render(<App />);
+
+    const winners = new Set<string>();
+    for (let drawIndex = 0; drawIndex < 10; drawIndex += 1) {
+      const before = JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!);
+      fireEvent.click(screen.getByRole('button', { name: /draw a lucky lantern/i }));
+      const saved = JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!);
+      const winnerNumber = saved.activeWinner.number as string;
+      const candidateNodes = screen.getAllByRole('listitem');
+      const visibleNumbers = candidateNodes.map((node) => node.getAttribute('data-number')!);
+
+      expect(screen.queryByRole('button', { name: /operator settings/i })).not.toBeInTheDocument();
+      expect(saved.winnerHistory).toHaveLength(drawIndex + 1);
+      expect(saved.activeWinner).toEqual(saved.winnerHistory.at(-1));
+      expect(visibleNumbers.length).toBeGreaterThanOrEqual(20);
+      expect(visibleNumbers.length).toBeLessThanOrEqual(36);
+      expect(new Set(visibleNumbers).size).toBe(visibleNumbers.length);
+      expect(visibleNumbers).toContain(winnerNumber);
+      expect(visibleNumbers.every((number) => before.availableNumbers.some((person: { number: string }) => person.number === number))).toBe(true);
+
+      fireEvent.keyDown(window, { key: ' ' });
+      fireEvent.keyDown(window, { key: ' ' });
+      expect(JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!).winnerHistory).toHaveLength(drawIndex + 1);
+
+      for (const delay of [1500, 2500, 2000]) act(() => { vi.advanceTimersByTime(delay); });
+      const finalists = screen.getAllByRole('listitem');
+      expect(finalists).toHaveLength(3);
+      expect(finalists.map((lantern) => lantern.getAttribute('data-number'))).toContain(winnerNumber);
+
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(screen.getAllByRole('listitem')).toHaveLength(3);
+      expect(document.querySelectorAll('.flying-number-lantern--flying-away')).toHaveLength(2);
+      expect(document.querySelector('.flying-number-lantern--locked')).toHaveAttribute('data-number', winnerNumber);
+
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+      expect(screen.getByRole('listitem').getAttribute('data-number')).toBe(winnerNumber);
+      act(() => { vi.advanceTimersByTime(700); });
+      expect(screen.getByTestId('flying-number-lanterns__emergence')).toHaveTextContent(winnerNumber);
+      expect(screen.getAllByTestId('lantern-burst-particle')).toHaveLength(20);
+      act(() => { vi.advanceTimersByTime(600); });
+      act(() => { vi.advanceTimersByTime(700); });
+
+      const winnerScreen = screen.getByRole('region', { name: /lucky draw winner/i });
+      expect(winnerScreen).toHaveTextContent(winnerNumber);
+      winners.add(winnerNumber);
+      fireEvent.click(screen.getByRole('button', { name: /next draw/i }));
+      expect(screen.queryByTestId('flying-number-lanterns')).not.toBeInTheDocument();
+    }
+    expect(winners.size).toBe(10);
+    expect(JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!).winnerHistory).toHaveLength(10);
   });
 });

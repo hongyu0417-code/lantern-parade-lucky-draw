@@ -34,7 +34,9 @@
 - `src/hooks/useDrawTimeline.ts`: phase timers with cleanup and reduced-motion handling.
 - `src/hooks/useFullscreen.ts`: fullscreen enter/exit and state synchronization.
 - `src/components/LanternStage.tsx`: scene composition and phase-aware experience layout.
-- `src/components/LanternField.tsx`: independently drifting lantern elements and chosen-lantern motion.
+- `src/components/LanternField.tsx`: ambient lantern elements used outside the live draw.
+- `src/components/FlyingNumberLanterns.tsx`: numbered draw candidates, moving selector, finalists, lock, burst, and reveal.
+- `src/draw/flyingLanterns.ts`: unique candidate roster sampled from the already-eligible participants.
 - `src/components/FirefliesCanvas.tsx`: low-count particle canvas with pause/cleanup behavior.
 - `src/components/WinnerReveal.tsx`: large accessible winning number, congratulations, optional name, and next actions.
 - `src/components/OperatorPanel.tsx`: range, participant import, duplicate setting, history counts, undo, and reset.
@@ -99,7 +101,7 @@ export function selectWinner(
 **Interfaces:**
 
 ```ts
-export type DrawPhase = "idle" | "awakening" | "searching" | "selecting" | "revealing" | "winner";
+export type DrawPhase = "idle" | "awakening" | "searching" | "selecting" | "finalists" | "locking" | "charging" | "burst" | "revealing" | "winner";
 export type DrawSettings = {
   startNumber: string;
   endNumber: string;
@@ -133,7 +135,7 @@ export function writeDrawRecord(storage: Storage, record: PersistedDrawRecord): 
 - [ ] Add reducer actions for reserving a draw, advancing phases, returning to idle, opening/closing overlays, and toggling sound. Rehydrate an `activeWinner` directly into the winner phase after a refresh.
 - [ ] Test reducer draw locking, phase ordering, refresh recovery, and that draw start cannot reserve twice. Re-run all tests and commit.
 
-Phase timing is 1100ms awakening, 2200ms searching, 1400ms selection, 1400ms reveal, and 1400ms winner settle. The timeline hook advances phases through reducer actions and clears every timeout on phase change or unmount. Under reduced motion, it presents the saved winner immediately.
+The current draw timing is 1500ms awakening, 2500ms rush, 2000ms selector, 2000ms finalists, 1000ms lock, 700ms charge, 600ms burst, and 700ms reveal. These phases total 11 seconds, then the existing winner page appears. The timeline hook advances phases through reducer actions and clears every timeout on phase change or unmount. Under reduced motion, it presents the saved winner immediately.
 
 ## Task 4: Generate the backdrop and build the animated stage
 

@@ -16,7 +16,7 @@ The event artwork establishes the midnight navy, painted brush texture, amber fo
 
 ## Screen composition
 
-The main stage fills the viewport and is composed for 1920x1080. The generated backdrop places the moon high to one side, autumn foliage on both edges, and a small bridge low and distant. The middle remains open for the reveal. Live lanterns drift across the lower third, with water reflections and a restrained firefly layer. A slight crop is acceptable on non-16:9 displays; responsive type and controls must remain inside the viewport at 1366x768, 2560x1440, and MacBook sizes.
+The main stage fills the viewport and is composed for 1920x1080. The generated backdrop places the moon high to one side, autumn foliage on both edges, and a small bridge low and distant. The middle remains open for the reveal. Idle lanterns drift across the lower third with water reflections and a restrained firefly layer; during the draw, the live field is replaced by numbered lanterns moving across the scene. A slight crop is acceptable on non-16:9 displays; responsive type and controls must remain inside the viewport at 1366x768, 2560x1440, and MacBook sizes.
 
 Idle shows a restrained Universiti Malaya Lantern Parade signature, `LUCKY DRAW`, a short holding line, and one primary `DRAW A LUCKY LANTERN` control. During the draw, controls recede and the lantern scene carries the moment. The winner screen centers `CONGRATULATIONS`, `LUCKY NUMBER`, a very large number, and an optional participant name. The selected lantern and its reflection sit behind and below the number without reducing contrast. `NEXT DRAW` and `VIEW WINNERS` remain secondary. Admin and history are themed overlays that are absent until requested. The supplied artwork does not provide separate transparent logo files, so the page will use restrained text branding rather than crop low-resolution logos from the poster.
 
@@ -24,19 +24,24 @@ Idle shows a restrained Universiti Malaya Lantern Parade signature, `LUCKY DRAW`
 
 The operator starts with the button or SPACE. The winner is selected, removed from the available pool, and persisted with history before animation begins. A phase-based reducer prevents overlapping sequences and a draw lock prevents rapid clicks or repeated keyboard input.
 
-1. Awakening: darken the scene slightly, increase lantern light, begin fireflies, and send a soft ripple.
-2. Searching: several lanterns glow in sequence while the audience waits.
-3. Selection: one lantern brightens, other lanterns recede, and the chosen lantern moves toward center.
-4. Reveal: particles gather and the already-selected number appears in readable display type.
-5. Winner: show the number, optional name, and a restrained celebratory light and ripple.
+The live animation uses the approved Flying Number Lanterns sequence: 20–36 unique, eligible participant numbers appear visibly inside moving lanterns. The persisted winner is forced into this transient roster; the roster never selects or changes the winner. Small pools display all available unique entries.
 
-The complete sequence lasts approximately 7.5 seconds. CSS transforms and opacity handle lantern and light movement. A small canvas is reserved for particles; it does not update React state each frame. All effects have cleanup, and `prefers-reduced-motion` disables ambient loops and shortens the reveal while preserving the result.
+1. Awakening (1.5s): staggered lanterns rise into the scene.
+2. Rush (2.5s): lanterns cross the scene with varied direction, speed, scale, and depth.
+3. Selector (2s): a gold ring jumps between numbered lanterns, ticking quickly before slowing with one or two near-miss pauses.
+4. Finalists (2s): the predetermined winner and two other real candidates move to center; smaller pools retain however many unique entries exist.
+5. Lock (1s): the winner is held by the selector, then the two other finalists fly out in opposite directions.
+6. Charge (0.7s): the winner lantern moves forward and brightens.
+7. Burst (0.6s): the lantern opens into a golden shockwave and light fragments as the number emerges.
+8. Reveal (0.7s): a giant number and congratulations settle before the existing winner screen appears.
+
+The sequence lasts 11 seconds. CSS transforms and opacity handle lantern and light movement, with a small, fixed fragment count at the burst. Optional local Web Audio adds soft selector, lock, charge, burst, and winner cues. All effects have cleanup, and `prefers-reduced-motion` presents the saved winner immediately.
 
 ## Application and state
 
-The project is a standalone React and TypeScript single-page app built for static hosting, with no backend, account, or runtime API. It uses a small set of focused components: `LanternStage`, `LanternField`, `WaterAndParticles`, `DrawExperience`, `WinnerReveal`, `WinnerHistory`, `OperatorPanel`, and `AudioController`. One reducer owns the explicit draw phases. Scene animation reads the phase and chosen lantern from that state; admin and history visibility remain separate UI overlays.
+The project is a standalone React and TypeScript single-page app built for static hosting, with no backend, account, or runtime API. It uses focused components including `LanternStage`, `LanternField` for ambient lanterns, `FlyingNumberLanterns` for the live draw, `FirefliesCanvas`, `WinnerReveal`, `WinnerHistory`, `OperatorPanel`, and `AudioController`. One reducer owns the explicit draw phases and transient candidate roster; admin and history visibility remain separate UI overlays.
 
-The main state flow is `IDLE -> AWAKENING -> SEARCHING -> SELECTING -> REVEALING -> WINNER -> IDLE`. A draw action is accepted only from IDLE. NEXT DRAW returns to IDLE without starting another draw. SPACE starts only from IDLE, and N returns from WINNER to IDLE. A refresh during an active sequence restores the saved winner and opens the winner screen without replaying or drawing again.
+The main state flow is `IDLE -> AWAKENING -> SEARCHING -> SELECTING -> FINALISTS -> LOCKING -> CHARGING -> BURST -> REVEALING -> WINNER -> IDLE`. A draw action is accepted only from IDLE. NEXT DRAW returns to IDLE without starting another draw. SPACE starts only from IDLE, and N returns from WINNER to IDLE. A refresh during an active sequence restores the saved winner and opens the winner screen without replaying or drawing again.
 
 ## Draw data and persistence
 

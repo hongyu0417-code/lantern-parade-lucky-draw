@@ -2,7 +2,17 @@ export type Participant = { number: string; name?: string };
 
 export type WinnerRecord = Participant & { round: number; drawnAt: string };
 
-export type DrawPhase = 'idle' | 'awakening' | 'searching' | 'selecting' | 'revealing' | 'winner';
+export type DrawPhase =
+  | 'idle'
+  | 'awakening'
+  | 'searching'
+  | 'selecting'
+  | 'finalists'
+  | 'locking'
+  | 'charging'
+  | 'burst'
+  | 'revealing'
+  | 'winner';
 
 export type DrawSettings = {
   startNumber: string;

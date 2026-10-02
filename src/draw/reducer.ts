@@ -1,5 +1,5 @@
 import { updateDrawSettings } from './persistence';
-import type { DrawPhase, PersistedDrawRecord } from './types';
+import type { DrawPhase, Participant, PersistedDrawRecord } from './types';
 
 export type DrawOverlay = 'admin' | 'history';
 
@@ -7,10 +7,11 @@ export type DrawState = {
   record: PersistedDrawRecord;
   phase: DrawPhase;
   overlay: DrawOverlay | null;
+  animationCandidates: Participant[];
 };
 
 export type DrawAction =
-  | { type: 'RESERVE_DRAW'; record: PersistedDrawRecord }
+  | { type: 'RESERVE_DRAW'; record: PersistedDrawRecord; animationCandidates: Participant[] }
   | { type: 'ADVANCE_PHASE'; phase: DrawPhase }
   | { type: 'SKIP_TO_WINNER' }
   | { type: 'RETURN_TO_IDLE' }
@@ -22,7 +23,11 @@ export type DrawAction =
 const NEXT_PHASE: Partial<Record<DrawPhase, DrawPhase>> = {
   awakening: 'searching',
   searching: 'selecting',
-  selecting: 'revealing',
+  selecting: 'finalists',
+  finalists: 'locking',
+  locking: 'charging',
+  charging: 'burst',
+  burst: 'revealing',
   revealing: 'winner',
 };
 
@@ -31,26 +36,29 @@ export function createDrawState(record: PersistedDrawRecord): DrawState {
     record,
     phase: record.activeWinner ? 'winner' : 'idle',
     overlay: null,
+    animationCandidates: [],
   };
 }
 
 export function drawReducer(state: DrawState, action: DrawAction): DrawState {
   switch (action.type) {
     case 'RESERVE_DRAW':
-      if (state.phase !== 'idle' || state.record.activeWinner || !action.record.activeWinner) return state;
-      return { record: action.record, phase: 'awakening', overlay: null };
+      if (state.phase !== 'idle' || state.record.activeWinner || !action.record.activeWinner
+        || !action.animationCandidates.some(({ number }) => number === action.record.activeWinner?.number)) return state;
+      return { record: action.record, phase: 'awakening', overlay: null, animationCandidates: action.animationCandidates };
     case 'ADVANCE_PHASE':
       if (NEXT_PHASE[state.phase] !== action.phase) return state;
-      return { ...state, phase: action.phase };
+      return { ...state, phase: action.phase, animationCandidates: action.phase === 'winner' ? [] : state.animationCandidates };
     case 'SKIP_TO_WINNER':
       if (state.phase === 'idle' || state.phase === 'winner' || !state.record.activeWinner) return state;
-      return { ...state, phase: 'winner' };
+      return { ...state, phase: 'winner', animationCandidates: [] };
     case 'RETURN_TO_IDLE':
       if (state.phase !== 'winner') return state;
       return {
         record: { ...state.record, activeWinner: null },
         phase: 'idle',
         overlay: null,
+        animationCandidates: [],
       };
     case 'OPEN_OVERLAY':
       if (state.phase !== 'idle' && state.phase !== 'winner') return state;
@@ -70,6 +78,7 @@ export function drawReducer(state: DrawState, action: DrawAction): DrawState {
         ...state,
         record: action.record,
         phase: action.record.activeWinner ? 'winner' : 'idle',
+        animationCandidates: [],
       };
     default:
       return state;

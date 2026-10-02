@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
-import type { DrawPhase, WinnerRecord } from '../draw/types';
+import type { DrawPhase, Participant, WinnerRecord } from '../draw/types';
 import { FirefliesCanvas } from './FirefliesCanvas';
+import { FlyingNumberLanterns } from './FlyingNumberLanterns';
 import { LanternField } from './LanternField';
 import { WinnerReveal } from './WinnerReveal';
 import '../styles/tokens.css';
@@ -9,6 +10,8 @@ import '../styles/stage.css';
 type LanternStageProps = {
   phase: DrawPhase;
   activeWinner: WinnerRecord | null;
+  animationCandidates: Participant[];
+  onSelectorTick?: (intensity: 'soft' | 'strong') => void;
   onDraw: () => void;
   onNext: () => void;
   onHistory: () => void;
@@ -28,23 +31,26 @@ const noticeStyle: CSSProperties = { maxWidth: 680, margin: '1.5rem auto 0', pad
 
 const phaseMessages: Partial<Record<DrawPhase, string>> = {
   awakening: 'The lanterns are waking',
-  searching: 'Searching the lanterns',
-  selecting: 'A lucky lantern is rising',
-  revealing: 'The lucky number is appearing',
+  searching: 'The numbered lanterns are rushing',
+  selecting: 'The golden selector is choosing',
+  finalists: 'Only three lanterns remain',
+  locking: 'The lucky lantern is locked',
+  charging: 'A lucky lantern is gathering light',
+  burst: 'The winning number is emerging',
+  revealing: 'Congratulations',
 };
 
-export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice, isFullscreen, soundEnabled, onSettings, onSound, onFullscreen }: LanternStageProps) {
+export function LanternStage({ phase, activeWinner, animationCandidates, onSelectorTick, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice, isFullscreen, soundEnabled, onSettings, onSound, onFullscreen }: LanternStageProps) {
   const isIdle = phase === 'idle';
   const isWinner = phase === 'winner';
   const inSequence = !isIdle && !isWinner;
-  const showNumber = (phase === 'revealing' || isWinner) && activeWinner;
-
   return (
     <main className={`lantern-stage lantern-stage--${phase}${reducedMotion ? ' lantern-stage--reduced-motion' : ''}`}>
       <div className="lantern-stage__art" aria-hidden="true" />
       <div className="lantern-stage__nightfall" aria-hidden="true" />
       <div className="lantern-stage__waterlight" aria-hidden="true" />
-      <LanternField phase={phase} chosenNumber={activeWinner?.number} />
+      {(!inSequence || !activeWinner) && <LanternField phase={isWinner ? 'idle' : phase} chosenNumber={isWinner ? null : activeWinner?.number} />}
+      {inSequence && activeWinner && <FlyingNumberLanterns phase={phase} candidates={animationCandidates} winner={activeWinner} onSelectorTick={onSelectorTick} />}
       <FirefliesCanvas intensity={inSequence ? 1 : isWinner ? 0.6 : 0.3} paused={reducedMotion} />
 
       <header className="stage-masthead">
@@ -68,25 +74,12 @@ export function LanternStage({ phase, activeWinner, onDraw, onNext, onHistory, r
           </section>
         )}
 
-        {inSequence && (
-          <section className="stage-search" aria-label="Drawing in progress">
-            <div className="stage-search__sigil" aria-hidden="true">✦</div>
-            <p className="stage-search__overline">THE LANTERNS ARE CHOOSING</p>
-            {showNumber ? (
-              <div className="stage-search__reveal" aria-live="polite">
-                <p>LUCKY NUMBER</p>
-                <span>{activeWinner.number}</span>
-              </div>
-            ) : (
-              <p className="stage-search__message" role="status" aria-live="polite">{phaseMessages[phase]}</p>
-            )}
-          </section>
-        )}
+        {inSequence && <p className="sr-only" role="status" aria-live="polite">{phaseMessages[phase]}</p>}
 
         {isWinner && activeWinner && <WinnerReveal winner={activeWinner} onNext={onNext} onHistory={onHistory} />}
         {notice && <p role="alert" style={noticeStyle}>{notice}</p>}
       </div>
-      {!isFullscreen && <nav aria-label="Operator controls" style={toolbarStyle}>
+      {!isFullscreen && !inSequence && <nav aria-label="Operator controls" style={toolbarStyle}>
         <button type="button" style={toolButtonStyle} onClick={onSettings} aria-label="Operator settings">SETTINGS · A</button>
         <button type="button" style={toolButtonStyle} onClick={onHistory} aria-label="Winner history">HISTORY · H</button>
         <button type="button" style={toolButtonStyle} onClick={onSound} aria-label={soundEnabled ? 'Mute sound' : 'Enable sound'}>{soundEnabled ? 'SOUND ON' : 'SOUND OFF'} · M</button>

@@ -78,6 +78,20 @@ export class AudioController {
 
   playSearchingCue(): void { this.voice(392, 0.055, 0.32); }
   playSelectionCue(): void { this.voice(587.33, 0.045, 0.22); }
+  playTickCue(strong = false): void { this.voice(strong ? 880 : 739.99, strong ? 0.032 : 0.018, strong ? 0.12 : 0.08); }
+  playLockCue(): void {
+    this.voice(392, 0.045, 0.24);
+    this.voice(587.33, 0.055, 0.28, 0.08);
+  }
+  playChargeCue(): void {
+    this.voice(440, 0.028, 0.36);
+    this.voice(659.25, 0.035, 0.3, 0.16);
+  }
+  playBurstCue(): void {
+    this.voice(329.63, 0.06, 0.3);
+    this.voice(523.25, 0.055, 0.38, 0.04);
+    this.voice(783.99, 0.048, 0.46, 0.11);
+  }
   playWinnerCue(): void {
     this.voice(523.25, 0.055, 0.75);
     this.voice(659.25, 0.055, 0.8, 0.12);
