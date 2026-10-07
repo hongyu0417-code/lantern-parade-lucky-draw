@@ -80,5 +80,5 @@
 - [x] Run the full test suite, type check, production build, and whitespace check.
 - [x] Review the final diff to confirm it contains only this username-display feature and its implementation plan.
 - [x] Fix the mobile font-size override, scale username labels to lantern width so long labels fit, retain the ellipsis, and confirm short numeric labels keep their previous font treatment.
-- [ ] Commit the completed changes and push `main` so the connected Vercel deployment updates.
-- [ ] Confirm the Vercel URL serves the published update.
+- [x] Commit the completed changes and push `main` so the connected Vercel deployment updates.
+- [x] Confirm the Vercel URL serves the published update.
