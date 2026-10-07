@@ -223,9 +223,10 @@ describe('App draw controls', () => {
       act(() => { vi.advanceTimersByTime(1000); });
       expect(document.querySelector('.flying-number-lantern--charging')).toHaveAttribute('data-number', winnerNumber);
       act(() => { vi.advanceTimersByTime(500); });
-      expect(screen.getByTestId('flying-number-lanterns__emergence')).toHaveTextContent(winnerNumber);
+      expect(screen.queryByTestId('flying-number-lanterns__emergence')).not.toBeInTheDocument();
       expect(screen.getAllByTestId('lantern-burst-fragment')).toHaveLength(20);
       act(() => { vi.advanceTimersByTime(200); });
+      expect(screen.getByTestId('flying-number-lanterns__emergence')).toHaveTextContent(winnerNumber);
       act(() => { vi.advanceTimersByTime(600); });
 
       const winnerScreen = screen.getByRole('region', { name: /幸运抽奖结果/ });

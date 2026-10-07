@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { DrawPhase, Participant, WinnerRecord } from '../draw/types';
 import { createLanternFlightPlans, type LanternFlightPlan } from '../draw/lanternFlight';
+import { getDisplayUsername, usesCompactUsernameTypography } from '../draw/usernames';
 
 type FlyingNumberLanternsProps = {
   phase: DrawPhase;
@@ -238,6 +239,7 @@ export function FlyingNumberLanterns({ phase, candidates, finalists, winner }: F
         {visibleParticipants.map((participant) => {
           const plan = planByNumber.get(participant.number);
           if (!plan) return null;
+          const displayUsername = getDisplayUsername(participant.number);
           const winnerFocus = participant.number === winner.number && winnerOnly;
           const winnerGliding = phase === 'separating' && participant.number === winner.number;
           const finalistLeaving = phase === 'separating' && finalistNumbers.has(participant.number) && participant.number !== winner.number;
@@ -257,7 +259,7 @@ export function FlyingNumberLanterns({ phase, candidates, finalists, winner }: F
             <div
               className={classes}
               role="listitem"
-              aria-label={`号码 ${participant.number}`}
+              aria-label={`号码 ${displayUsername}`}
               data-flight-number={participant.number}
               data-number={participant.number}
               data-motion="up"
@@ -277,7 +279,11 @@ export function FlyingNumberLanterns({ phase, candidates, finalists, winner }: F
                 <span className="flying-number-lantern__paper">
                   <span className="flying-number-lantern__frame" aria-hidden="true" />
                   <span className="flying-number-lantern__flame" aria-hidden="true" />
-                  <span className="flying-number-lantern__number">{participant.number}</span>
+                  <span
+                    className="flying-number-lantern__number"
+                    data-username={usesCompactUsernameTypography(participant.number) ? 'true' : undefined}
+                    style={{ '--username-visible-length': Array.from(displayUsername).length } as CSSProperties}
+                  >{displayUsername}</span>
                   <span className="flying-number-lantern__frame-fragment" aria-hidden="true" />
                 </span>
                 <span className="flying-number-lantern__reflection" />
@@ -303,11 +309,19 @@ export function FlyingNumberLanterns({ phase, candidates, finalists, winner }: F
             aria-hidden="true"
           />
         ))}
-        <div className="flying-number-lanterns__emergence" data-testid="flying-number-lanterns__emergence" role="status" aria-label="中奖号码" aria-live="polite">
-          <p>中奖号码</p>
+        {phase === 'revealing' && <div
+          className="flying-number-lanterns__emergence"
+          data-testid="flying-number-lanterns__emergence"
+          data-username={usesCompactUsernameTypography(winner.number) ? 'true' : undefined}
+          role="status"
+          aria-label="中奖者"
+          aria-live="polite"
+          style={{ '--winner-character-count': Array.from(winner.number).length } as CSSProperties}
+        >
+          <p className="flying-number-lanterns__congratulations">恭喜！</p>
+          <p>中奖者</p>
           <span>{winner.number}</span>
-          {phase === 'revealing' && <p className="flying-number-lanterns__congratulations">恭喜！</p>}
-        </div>
+        </div>}
       </>}
     </div>
   );

@@ -50,6 +50,17 @@ describe('OperatorPanel', () => {
     expect(actions.onSave).toHaveBeenCalledWith(expect.objectContaining({ participants: [{ number: '007', name: 'Amina, Lee' }] }));
   });
 
+  it('keeps full Instagram usernames in the admin import and export field', () => {
+    const actions = callbacks();
+    const username = '@thisisaverylongusername';
+    render(<OperatorPanel settings={{ ...settings, participants: [{ number: username }, { number: 'jason_tan03' }] }} remainingCount={2} winnerCount={0} isDrawActive={false} validationErrors={[]} {...actions} />);
+    const textarea = screen.getByLabelText('导入参与者名单');
+
+    expect(textarea).toHaveValue(`${username}\njason_tan03`);
+    fireEvent.click(screen.getByRole('button', { name: '保存抽奖名单' }));
+    expect(actions.onSave).toHaveBeenCalledWith(expect.objectContaining({ participants: [{ number: username }, { number: 'jason_tan03' }] }));
+  });
+
   it('shows parent validation errors and confirms reset actions', () => {
     const actions = callbacks();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true).mockReturnValueOnce(true);

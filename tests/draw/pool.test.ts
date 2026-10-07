@@ -38,6 +38,23 @@ describe('parseParticipantsCsv', () => {
     });
   });
 
+  it('parses full Instagram usernames from a username header and unheaded rows without normalizing @', () => {
+    expect(parseParticipantsCsv('Instagram Username,Name\n@hongyu814__,Hongyu\njason_tan03,Jason')).toEqual({
+      participants: [{ number: '@hongyu814__', name: 'Hongyu' }, { number: 'jason_tan03', name: 'Jason' }],
+      errors: [],
+    });
+    expect(parseParticipantsCsv('@meowmeowforever\nabc123')).toEqual({
+      participants: [{ number: '@meowmeowforever' }, { number: 'abc123' }],
+      errors: [],
+    });
+  });
+
+  it('deduplicates only identical full usernames, not different usernames with the same compact label', () => {
+    const parsed = parseParticipantsCsv('username\n@abcdefgh111\n@abcdefgh222\n@abcdefgh111');
+    expect(parsed.participants).toEqual([{ number: '@abcdefgh111' }, { number: '@abcdefgh222' }]);
+    expect(parsed.errors).toEqual(['第 4 行：参与者标识“@abcdefgh111”重复。']);
+  });
+
   it('parses rows without a header and ignores blank rows', () => {
     expect(parseParticipantsCsv('\n001,Ada\n\n002,Ben\n')).toEqual({
       participants: [{ number: '001', name: 'Ada' }, { number: '002', name: 'Ben' }],
@@ -91,6 +108,14 @@ describe('selectWinner', () => {
       availableNumbers: [{ number: '001', name: 'Ada' }],
     });
     expect(randomIndex).toHaveBeenCalledWith(2);
+  });
+
+  it('selects and preserves the original full username as the winner identity', () => {
+    const usernames = [{ number: '@abcdefgh111' }, { number: '@abcdefgh222' }];
+    expect(selectWinner(usernames, true, () => 1)).toEqual({
+      winner: { number: '@abcdefgh222' },
+      availableNumbers: [{ number: '@abcdefgh111' }],
+    });
   });
 
   it('keeps the eligible pool unchanged when repeats are enabled', () => {

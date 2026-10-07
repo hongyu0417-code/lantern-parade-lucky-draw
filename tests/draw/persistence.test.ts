@@ -31,6 +31,19 @@ describe('persisted draw records', () => {
     expect(original.winnerHistory).toHaveLength(0);
   });
 
+  it('stores the complete winning username in active draw state and winner history', () => {
+    const storage = memoryStorage();
+    const usernames = [{ number: '@abcdefgh111' }, { number: '@abcdefgh222' }];
+    const imported = updateDrawSettings(createDefaultRecord(), { participants: usernames });
+    const drawn = reserveDraw(imported, () => 1, '2026-10-07T12:00:00Z');
+    writeDrawRecord(storage, drawn);
+
+    expect(drawn.activeWinner?.number).toBe('@abcdefgh222');
+    expect(drawn.winnerHistory.map(({ number }) => number)).toEqual(['@abcdefgh222']);
+    expect(readDrawRecord(storage).winnerHistory.map(({ number }) => number)).toEqual(['@abcdefgh222']);
+    expect(readDrawRecord(storage).availableNumbers).toEqual([{ number: '@abcdefgh111' }]);
+  });
+
   it('allows repeats only when requested', () => {
     const record = updateDrawSettings(createDefaultRecord(), { preventDuplicates: false });
     const first = reserveDraw(record, () => 0, 'first');

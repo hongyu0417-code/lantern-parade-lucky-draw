@@ -70,7 +70,7 @@ export function OperatorPanel({
     }
     if (importPreview?.errors.length) nextErrors.push(...importPreview.errors);
     if (csv.trim() && importPreview?.participants.length === 0) {
-      nextErrors.push('请至少填写一位参与者的号码。');
+      nextErrors.push('请至少填写一位参与者的标识。');
     }
     setLocalErrors(nextErrors);
     if (nextErrors.length > 0) return;
@@ -107,9 +107,9 @@ export function OperatorPanel({
           </div>
           <p className="operator-panel__hint">号码范围包含起始与结束号码；小于 1000 的号码会以三位数显示。</p>
           <label className="operator-panel__csv-label">导入参与者名单
-            <textarea value={csv} onChange={(event) => { setCsv(event.target.value); setLocalErrors([]); }} placeholder={'号码,姓名\n001,陈美玲\n002,王俊杰'} rows={5} spellCheck={false} disabled={isDrawActive} />
+            <textarea value={csv} onChange={(event) => { setCsv(event.target.value); setLocalErrors([]); }} placeholder={'Instagram 用户名,姓名\n@hongyu814__,陈美玲\njason_tan03,王俊杰'} rows={5} spellCheck={false} disabled={isDrawActive} />
           </label>
-          <p className="operator-panel__hint">每行填写“号码,姓名”，即可使用参与者名单代替号码范围。清空名单即可恢复使用号码范围。</p>
+          <p className="operator-panel__hint">每行填写“Instagram 用户名,姓名”，也可只填写用户名；支持带或不带 @。清空名单即可恢复使用号码范围。</p>
           {importPreview && <p className="operator-panel__preview">已读取 {importPreview.participants.length} 位参与者</p>}
           <label className="operator-panel__toggle">
             <input type="checkbox" checked={preventDuplicates} onChange={(event) => setPreventDuplicates(event.target.checked)} disabled={isDrawActive} />

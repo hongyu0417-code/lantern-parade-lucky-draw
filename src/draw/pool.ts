@@ -116,7 +116,7 @@ export function parseParticipantsCsv(input: string): { participants: Participant
 
   const firstCells = meaningfulRows[0].cells.map((cell) => cell.toLowerCase());
   const headerCell = firstCells[0]?.toLowerCase();
-  const hasHeader = ['number', 'id', '号码', '编号'].includes(headerCell);
+  const hasHeader = ['number', 'id', 'username', 'instagram', 'instagram username', 'instagram_username', 'handle', '用户名', 'instagram 用户名', '号码', '编号'].includes(headerCell);
   const expectedColumns = hasHeader ? meaningfulRows[0].cells.length : undefined;
   const dataRows = hasHeader ? meaningfulRows.slice(1) : meaningfulRows;
   if (dataRows.length > MAX_PARTICIPANTS || errors.some((error) => error.includes('10,000'))) {
@@ -126,12 +126,12 @@ export function parseParticipantsCsv(input: string): { participants: Participant
 
   for (const { cells, line } of dataRows) {
     if (cells.length < 1 || cells.length > 2 || !cells[0] || (expectedColumns !== undefined && cells.length !== expectedColumns)) {
-      errors.push(`第 ${line} 行：请填写参与者号码，姓名可选。`);
+      errors.push(`第 ${line} 行：请填写参与者标识，姓名可选。`);
       continue;
     }
     const number = cells[0];
     if (seen.has(number)) {
-      errors.push(`第 ${line} 行：号码“${number}”重复。`);
+      errors.push(`第 ${line} 行：参与者标识“${number}”重复。`);
       continue;
     }
     seen.add(number);

@@ -1,4 +1,6 @@
+import type { CSSProperties } from 'react';
 import type { WinnerRecord } from '../draw/types';
+import { usesCompactUsernameTypography } from '../draw/usernames';
 
 type WinnerRevealProps = {
   winner: WinnerRecord;
@@ -7,11 +9,16 @@ type WinnerRevealProps = {
 };
 
 export function WinnerReveal({ winner, onNext, onHistory }: WinnerRevealProps) {
+  const username = usesCompactUsernameTypography(winner.number);
   return (
     <section className="stage-winner" role="region" aria-label="幸运抽奖结果" aria-live="polite">
       <p className="stage-winner__congratulations">恭喜！</p>
-      <p className="stage-winner__label">中奖号码</p>
-      <strong className="stage-winner__number">{winner.number}</strong>
+      <p className="stage-winner__label">中奖者</p>
+      <strong
+        className="stage-winner__number"
+        data-username={username ? 'true' : undefined}
+        style={{ '--winner-character-count': Array.from(winner.number).length } as CSSProperties}
+      >{winner.number}</strong>
       {winner.name && <p className="stage-winner__name" data-testid="winner-name">{winner.name}</p>}
       <div className="stage-winner__actions">
         <button className="stage-button stage-button--primary" type="button" onClick={onNext}>下一轮抽奖</button>

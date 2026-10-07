@@ -57,7 +57,7 @@
 .winner-history__list { display: grid; gap: 1px; max-height: min(60vh, 570px); overflow: auto; margin: 0; padding: 0; background: rgba(239, 189, 105, .2); list-style: none; }
 .winner-history__row { display: grid; grid-template-columns: minmax(85px, 1fr) minmax(75px, auto) minmax(80px, 1.4fr); align-items: center; gap: 16px; min-height: 68px; padding: 12px 18px; background: rgba(12, 34, 57, .96); }
 .winner-history__round { color: var(--quiet-cream); font-size: .76rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.winner-history__number { color: var(--lantern-light); font-family: var(--stage-serif); font-size: 2rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.winner-history__number { min-width: 0; overflow-wrap: anywhere; color: var(--lantern-light); font-family: var(--stage-serif); font-size: 2rem; font-weight: 400; font-variant-numeric: tabular-nums; }
 .winner-history__name { overflow-wrap: anywhere; text-align: right; }
 
 @media (max-width: 620px) {

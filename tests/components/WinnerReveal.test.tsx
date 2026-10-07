@@ -20,6 +20,17 @@ describe('WinnerReveal', () => {
     expect(onHistory).toHaveBeenCalledOnce();
   });
 
+  it('shows the complete long username and gives it a length-based fit size', () => {
+    const longUsername = '@thisisaverylongusername';
+    render(<WinnerReveal winner={{ number: longUsername, round: 1, drawnAt: '2026-10-01T00:00:00.000Z' }} onNext={vi.fn()} onHistory={vi.fn()} />);
+
+    const fullWinner = screen.getByText(longUsername);
+    expect(fullWinner).toBeInTheDocument();
+    expect(fullWinner).toHaveAttribute('data-username', 'true');
+    expect(fullWinner).toHaveStyle({ '--winner-character-count': String(longUsername.length) });
+    expect(screen.getByText('中奖者')).toBeInTheDocument();
+  });
+
   it('omits the name when none was supplied', () => {
     render(<WinnerReveal winner={{ number: '011', round: 1, drawnAt: '2026-10-01T00:00:00.000Z' }} onNext={vi.fn()} onHistory={vi.fn()} />);
     expect(screen.getByText('011')).toBeInTheDocument();
@@ -29,14 +40,15 @@ describe('WinnerReveal', () => {
 
 describe('WinnerHistory', () => {
   it('shows round, number, and optional name in the history overlay', () => {
+    const longUsername = '@meowmeowforever';
     const onClose = vi.fn();
     render(<WinnerHistory winnerHistory={[
-      { number: '007', name: 'Amina', round: 1, drawnAt: '2026-10-01T00:00:00.000Z' },
+      { number: longUsername, name: 'Amina', round: 1, drawnAt: '2026-10-01T00:00:00.000Z' },
       { number: '008', round: 2, drawnAt: '2026-10-01T00:01:00.000Z' },
     ]} onClose={onClose} />);
 
     expect(screen.getByRole('dialog', { name: '今晚的幸运得主' })).toBeInTheDocument();
-    expect(screen.getByText('007')).toBeInTheDocument();
+    expect(screen.getByText(longUsername)).toBeInTheDocument();
     expect(screen.getByText('008')).toBeInTheDocument();
     expect(screen.getByText('Amina')).toBeInTheDocument();
     expect(screen.getByText('第 1 轮')).toBeInTheDocument();

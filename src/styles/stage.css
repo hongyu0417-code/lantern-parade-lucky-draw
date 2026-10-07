@@ -207,6 +207,12 @@
   text-shadow: 0 5px 5px rgba(0, 0, 0, .42), 0 0 80px rgba(246, 173, 73, .48);
   font-variant-numeric: lining-nums tabular-nums;
 }
+.stage-winner__number[data-username='true'] {
+  max-width: 80vw;
+  white-space: nowrap;
+  letter-spacing: -.025em;
+  font-size: clamp(.75rem, min(var(--winner-max-size, 18vw), calc(117vw / var(--winner-character-count))), var(--winner-max-size, 18vw));
+}
 .stage-winner__name { margin: .3em 0 0; font-family: var(--stage-serif); font-size: clamp(1.5rem, 2.5vw, 3rem); text-shadow: 0 4px 16px #06192e; }
 .stage-winner__actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; margin-top: clamp(20px, 4vh, 50px); }
 
@@ -266,6 +272,7 @@
   .stage-masthead__rule { left: 28px; right: 28px; top: 72px; }
   .stage-intro h1 { font-size: clamp(4rem, 12vw, 7rem); }
   .stage-winner__number { font-size: clamp(7rem, 22vw, 12rem); }
+  .stage-winner__number[data-username='true'] { --winner-max-size: 22vw; }
   .lantern-stage__content { padding-top: 5vh; }
 }
 
@@ -286,6 +293,7 @@
   .stage-intro__line { margin: 12px 0 24px; }
   .stage-winner { padding-top: 0; }
   .stage-winner__number { font-size: clamp(7rem, 16vw, 13rem); }
+  .stage-winner__number[data-username='true'] { --winner-max-size: 16vw; }
   .stage-winner__actions { margin-top: 14px; }
 }
 
@@ -365,6 +373,7 @@
   inset: 0 0 19%;
   display: grid;
   place-items: center;
+  container-type: inline-size;
   overflow: hidden;
   border: 1px solid rgba(255, 227, 153, .94);
   border-radius: 12px 12px 9px 9px;
@@ -408,7 +417,12 @@
 
 .flying-number-lantern__number {
   position: relative;
+  display: block;
   z-index: 2;
+  max-width: 74%;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
   color: #fff0c2;
   font-family: var(--stage-serif);
   font-size: clamp(1.02rem, 1.15vw, 1.42rem);
@@ -419,6 +433,12 @@
   -webkit-text-stroke: 1px rgba(71, 35, 14, .95);
   paint-order: stroke fill;
   text-shadow: 0 1px 1px rgba(60, 28, 11, .8), 0 0 5px rgba(255, 247, 208, .82);
+}
+
+.flying-number-lantern__number[data-username='true'] {
+  letter-spacing: 0;
+  font-size: clamp(.3rem, calc(3.1rem / var(--username-visible-length)), .82rem);
+  font-size: min(.82rem, calc(109cqw / var(--username-visible-length)));
 }
 
 .flying-number-lantern__frame-fragment {
@@ -559,6 +579,11 @@
   translate: none;
   animation: winner-number-emerge 600ms cubic-bezier(.12, .85, .24, 1) both;
 }
+.flying-number-lanterns__emergence[data-username='true'] {
+  max-width: 80vw;
+  white-space: nowrap;
+  font-size: clamp(.75rem, min(20vw, calc(130vw / var(--winner-character-count))), 20vw);
+}
 
 .flying-number-lanterns__emergence p {
   margin: .55em 0 0;
@@ -669,7 +694,7 @@
 
 @media (max-width: 760px) {
   .flying-number-lantern { width: clamp(48px, 9vw, 68px); height: clamp(73px, 13vh, 98px); }
-  .flying-number-lantern__number { font-size: clamp(.9rem, 2.9vw, 1.15rem); }
+  .flying-number-lantern__number:not([data-username='true']) { font-size: clamp(.9rem, 2.9vw, 1.15rem); }
   .flying-number-lanterns__prompt { letter-spacing: .19em; }
   .flying-number-lanterns__roster .flying-number-lantern { --winner-charge-peak: 1.9; --winner-charge-settle: 1.72; }
   .flying-number-lanterns__emergence { font-size: clamp(7rem, 31vw, 12rem); }
