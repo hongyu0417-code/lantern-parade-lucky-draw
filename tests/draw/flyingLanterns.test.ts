@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCandidateLanterns } from '../../src/draw/flyingLanterns';
+import { createCandidateLanterns, createFinalistLanterns } from '../../src/draw/flyingLanterns';
 import type { Participant } from '../../src/draw/types';
 
 const participants = (count: number): Participant[] => Array.from({ length: count }, (_, index) => ({
@@ -41,5 +41,30 @@ describe('numbered lantern candidates', () => {
   it('rejects an out-of-range random index instead of silently choosing an invalid number', () => {
     const eligible = participants(40);
     expect(() => createCandidateLanterns(eligible, eligible[0], () => 999)).toThrow(/random index/i);
+  });
+
+  it('picks three distinct real finalists in random positions and always includes the saved winner', () => {
+    const candidates = participants(24);
+    const winner = candidates[12];
+    const winnerFirst = createFinalistLanterns(candidates, winner, () => 0);
+    const winnerLast = createFinalistLanterns(candidates, winner, (max) => max - 1);
+
+    for (const finalists of [winnerFirst, winnerLast]) {
+      expect(finalists).toHaveLength(3);
+      expect(new Set(finalists.map(({ number }) => number)).size).toBe(3);
+      expect(finalists).toContainEqual(winner);
+      expect(finalists.every(({ number }) => candidates.some((candidate) => candidate.number === number))).toBe(true);
+    }
+    expect(winnerFirst[0]).toEqual(winner);
+    expect(winnerLast[2]).toEqual(winner);
+  });
+
+  it('uses every real entry when fewer than three candidates are available', () => {
+    const candidates = [{ number: '013' }, { number: '022' }];
+    expect(createFinalistLanterns(candidates, candidates[0], () => 0)).toEqual(candidates);
+  });
+
+  it('rejects a finalist winner that is missing from the flight roster', () => {
+    expect(() => createFinalistLanterns(participants(4), { number: '999' }, () => 0)).toThrow(/winner.*roster/i);
   });
 });

@@ -11,11 +11,11 @@ describe('WinnerReveal', () => {
     const onHistory = vi.fn();
     render(<WinnerReveal winner={{ number: '007', name: 'Amina', round: 2, drawnAt: '2026-10-01T00:00:00.000Z' }} onNext={onNext} onHistory={onHistory} />);
 
-    expect(screen.getByRole('region', { name: 'Lucky draw winner' })).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByRole('region', { name: '幸运抽奖结果' })).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByText('007')).toBeInTheDocument();
     expect(screen.getByText('Amina')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'NEXT DRAW' }));
-    fireEvent.click(screen.getByRole('button', { name: 'VIEW WINNERS' }));
+    fireEvent.click(screen.getByRole('button', { name: '下一轮抽奖' }));
+    fireEvent.click(screen.getByRole('button', { name: '查看中奖名单' }));
     expect(onNext).toHaveBeenCalledOnce();
     expect(onHistory).toHaveBeenCalledOnce();
   });
@@ -35,17 +35,17 @@ describe('WinnerHistory', () => {
       { number: '008', round: 2, drawnAt: '2026-10-01T00:01:00.000Z' },
     ]} onClose={onClose} />);
 
-    expect(screen.getByRole('dialog', { name: 'Winner history' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: '今晚的幸运得主' })).toBeInTheDocument();
     expect(screen.getByText('007')).toBeInTheDocument();
     expect(screen.getByText('008')).toBeInTheDocument();
     expect(screen.getByText('Amina')).toBeInTheDocument();
-    expect(screen.getByText('Round 1')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Close winner history' }));
+    expect(screen.getByText('第 1 轮')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '关闭中奖记录' }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('explains an empty history', () => {
     render(<WinnerHistory winnerHistory={[]} onClose={vi.fn()} />);
-    expect(screen.getByText(/No winners yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/还没有中奖记录/i)).toBeInTheDocument();
   });
 });

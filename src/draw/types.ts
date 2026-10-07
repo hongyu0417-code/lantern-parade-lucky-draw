@@ -4,11 +4,13 @@ export type WinnerRecord = Participant & { round: number; drawnAt: string };
 
 export type DrawPhase =
   | 'idle'
+  | 'preparing'
   | 'awakening'
-  | 'searching'
-  | 'selecting'
+  | 'ascending'
+  | 'narrowing'
   | 'finalists'
-  | 'locking'
+  | 'separating'
+  | 'magnifying'
   | 'charging'
   | 'burst'
   | 'revealing'

@@ -40,3 +40,20 @@ export function createCandidateLanterns(
   roster.splice(winnerSlot, 0, winningEntry);
   return roster;
 }
+
+/** Chooses the transient final trio without changing the saved winner. */
+export function createFinalistLanterns(
+  candidates: Participant[],
+  winner: Participant,
+  randomIndex: (exclusiveMax: number) => number,
+): Participant[] {
+  const unique = [...new Map(candidates.map((participant) => [participant.number, participant])).values()];
+  const winningEntry = unique.find(({ number }) => number === winner.number);
+  if (!winningEntry) throw new Error('The saved winner must be in the finalist roster.');
+  if (unique.length <= 3) return unique;
+
+  const otherFinalists = shuffle(unique.filter(({ number }) => number !== winner.number), randomIndex).slice(0, 2);
+  const winnerSlot = checkedIndex(randomIndex, otherFinalists.length + 1);
+  otherFinalists.splice(winnerSlot, 0, winningEntry);
+  return otherFinalists;
+}

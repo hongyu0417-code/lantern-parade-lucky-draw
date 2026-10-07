@@ -8,6 +8,12 @@ describe('buildNumericPool', () => {
     ]);
   });
 
+  it('uses three-digit formatting for ranges below one thousand', () => {
+    expect(buildNumericPool('7', '9')).toEqual([
+      { number: '007' }, { number: '008' }, { number: '009' },
+    ]);
+  });
+
   it.each([
     ['', '3'], ['x', '3'], ['1', 'x'], ['1.2', '3'], ['-1', '3'], ['1', ''],
   ])('rejects invalid ranges %j through %j', (start, end) => {
@@ -43,9 +49,9 @@ describe('parseParticipantsCsv', () => {
     const parsed = parseParticipantsCsv('number,name\n001,Ada\nbroken\n001,Other\n002,Ben,Extra');
     expect(parsed.participants).toEqual([{ number: '001', name: 'Ada' }]);
     expect(parsed.errors).toHaveLength(3);
-    expect(parsed.errors.join(' ')).toMatch(/row 3/i);
-    expect(parsed.errors.join(' ')).toMatch(/duplicate/i);
-    expect(parsed.errors.join(' ')).toMatch(/row 5/i);
+    expect(parsed.errors.join(' ')).toMatch(/第 3 行/);
+    expect(parsed.errors.join(' ')).toMatch(/重复/);
+    expect(parsed.errors.join(' ')).toMatch(/第 5 行/);
   });
 
   it('accepts a number-only row', () => {
@@ -58,13 +64,13 @@ describe('parseParticipantsCsv', () => {
   it('reports an unclosed quoted field instead of swallowing following participant rows', () => {
     const parsed = parseParticipantsCsv('number,name\n001,"Ada\n002,Ben');
     expect(parsed.participants).toEqual([]);
-    expect(parsed.errors).toEqual([expect.stringMatching(/row 2.*quote/i)]);
+    expect(parsed.errors).toEqual([expect.stringMatching(/第 2 行.*引号未闭合/)]);
   });
 
   it('reports misplaced quote characters in a field', () => {
     const parsed = parseParticipantsCsv('number,name\n001,Ad"a');
     expect(parsed.participants).toEqual([]);
-    expect(parsed.errors).toEqual(['Row 2: malformed quote syntax.']);
+    expect(parsed.errors).toEqual(['第 2 行：引号格式有误。']);
   });
 
   it('rejects more than 10,000 imported participants without returning a partial pool', () => {

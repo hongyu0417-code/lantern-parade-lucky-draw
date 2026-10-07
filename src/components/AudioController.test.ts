@@ -30,8 +30,8 @@ function fakeAudio() {
 describe('AudioController', () => {
   it('is silent before initialization and tolerates absent Web Audio', () => {
     const audio = new AudioController();
-    expect(() => audio.playSearchingCue()).not.toThrow();
-    expect(() => audio.playSelectionCue()).not.toThrow();
+    expect(() => audio.playLaunchCue()).not.toThrow();
+    expect(() => audio.playAscentCue()).not.toThrow();
     expect(() => audio.initialize()).not.toThrow();
     expect(() => audio.dispose()).not.toThrow();
   });
@@ -43,10 +43,13 @@ describe('AudioController', () => {
     audio.initialize();
     expect(oscillators).toHaveLength(2);
     expect(gains[0].gain.setValueAtTime).toHaveBeenCalledWith(expect.any(Number), expect.any(Number));
-    audio.playSearchingCue();
-    audio.playSelectionCue();
+    audio.playLaunchCue();
+    audio.playAscentCue();
+    audio.playFinalistsCue();
+    audio.playSeparationCue();
+    audio.playMagnifyCue();
     audio.playWinnerCue();
-    expect(oscillators).toHaveLength(7);
+    expect(oscillators).toHaveLength(15);
     expect(oscillators[2].frequency.value).not.toBe(oscillators[3].frequency.value);
     audio.dispose();
   });
@@ -60,7 +63,7 @@ describe('AudioController', () => {
     audio.setMuted(true);
     expect(oscillators.every(({ stop, disconnect }) => stop.mock.calls.length > 0 && disconnect.mock.calls.length > 0)).toBe(true);
     expect(gains.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true);
-    audio.playSelectionCue();
+    audio.playFinalistsCue();
     expect(oscillators).toHaveLength(5);
     audio.setMuted(false);
     expect(oscillators).toHaveLength(7);

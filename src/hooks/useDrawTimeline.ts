@@ -3,14 +3,16 @@ import type { DrawAction } from '../draw/reducer';
 import type { DrawPhase } from '../draw/types';
 
 const PHASE_DELAYS: Partial<Record<DrawPhase, number>> = {
-  awakening: 1500,
-  searching: 2500,
-  selecting: 2000,
-  finalists: 2000,
-  locking: 1000,
-  charging: 700,
-  burst: 600,
-  revealing: 700,
+  preparing: 320,
+  awakening: 2500,
+  ascending: 3000,
+  narrowing: 1500,
+  finalists: 1500,
+  separating: 1200,
+  magnifying: 1000,
+  charging: 500,
+  burst: 200,
+  revealing: 600,
 };
 
 export function useDrawTimeline(
@@ -26,11 +28,13 @@ export function useDrawTimeline(
     }
 
     const nextPhase = ({
-      awakening: 'searching',
-      searching: 'selecting',
-      selecting: 'finalists',
-      finalists: 'locking',
-      locking: 'charging',
+      preparing: 'awakening',
+      awakening: 'ascending',
+      ascending: 'narrowing',
+      narrowing: 'finalists',
+      finalists: 'separating',
+      separating: 'magnifying',
+      magnifying: 'charging',
       charging: 'burst',
       burst: 'revealing',
       revealing: 'winner',

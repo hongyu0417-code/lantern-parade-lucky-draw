@@ -25,21 +25,21 @@ function containTab(event: KeyboardEvent<HTMLElement>) {
 export function WinnerHistory({ winnerHistory, onClose }: WinnerHistoryProps) {
   return (
     <div className="overlay-backdrop">
-      <section className="operator-dialog winner-history" role="dialog" aria-modal="true" aria-labelledby="winner-history-heading" onKeyDown={containTab}>
+        <section className="operator-dialog winner-history" role="dialog" aria-modal="true" aria-labelledby="winner-history-heading" onKeyDown={containTab}>
         <header className="operator-dialog__header">
           <div>
-            <p className="operator-dialog__eyebrow">A RECORD OF FORTUNE</p>
-            <h2 id="winner-history-heading">Winner history</h2>
+            <p className="operator-dialog__eyebrow">幸运时刻 · 记录于此</p>
+            <h2 id="winner-history-heading">今晚的幸运得主</h2>
           </div>
-          <button className="operator-dialog__close" type="button" aria-label="Close winner history" onClick={onClose} autoFocus>×</button>
+          <button className="operator-dialog__close" type="button" aria-label="关闭中奖记录" onClick={onClose} autoFocus>×</button>
         </header>
         {winnerHistory.length === 0 ? (
-          <p className="winner-history__empty">No winners yet. The first lucky lantern is still waiting.</p>
+          <p className="winner-history__empty">还没有中奖记录，第一盏幸运灯笼正等待升起。</p>
         ) : (
           <ol className="winner-history__list">
             {[...winnerHistory].reverse().map((winner) => (
               <li className="winner-history__row" key={`${winner.round}-${winner.drawnAt}`}>
-                <span className="winner-history__round">Round {winner.round}</span>
+                <span className="winner-history__round">第 {winner.round} 轮</span>
                 <strong className="winner-history__number">{winner.number}</strong>
                 {winner.name && <span className="winner-history__name">{winner.name}</span>}
               </li>

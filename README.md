@@ -13,6 +13,10 @@ npm run dev
 
 Open the local URL printed by Vite (normally `http://localhost:5173/`). For a production build, run `npm run build`; its files are written to `dist/`.
 
+## Publish
+
+The `main` branch deploys to GitHub Pages after each push. Enable **Settings → Pages → Build and deployment → Source → GitHub Actions** in the repository if Pages has not been enabled yet.
+
 ## Run the draw
 
 1. Open **Settings** before the event. The default pool is the inclusive range **001–300**, with duplicate winners prevented. Set another start/end range or paste participant CSV rows into **Participants CSV**. Each row needs a number and may include a name, for example `001,Amina`; a `NUMBER,NAME` header is optional. Save the pool. Clear the CSV box and save to use the numeric range again.

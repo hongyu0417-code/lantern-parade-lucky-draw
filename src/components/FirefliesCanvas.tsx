@@ -6,7 +6,7 @@ type FirefliesCanvasProps = {
 };
 
 type Firefly = { x: number; y: number; radius: number; phase: number; speed: number };
-const MAX_PARTICLES = 28;
+const MAX_PARTICLES = 18;
 
 export function FirefliesCanvas({ intensity, paused }: FirefliesCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -67,7 +67,7 @@ export function FirefliesCanvas({ intensity, paused }: FirefliesCanvasProps) {
         const y = particle.y * height + Math.cos(time * 0.0002 + particle.phase) * 5;
         context.beginPath();
         context.fillStyle = `rgba(255, 209, 123, ${glow})`;
-        context.shadowBlur = 9;
+        context.shadowBlur = 3;
         context.shadowColor = 'rgba(255, 177, 75, 0.65)';
         context.arc(x, y, particle.radius, 0, Math.PI * 2);
         context.fill();

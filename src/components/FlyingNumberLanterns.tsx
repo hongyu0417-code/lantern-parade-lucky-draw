@@ -1,176 +1,314 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { DrawPhase, Participant, WinnerRecord } from '../draw/types';
+import { createLanternFlightPlans, type LanternFlightPlan } from '../draw/lanternFlight';
 
 type FlyingNumberLanternsProps = {
   phase: DrawPhase;
   candidates: Participant[];
+  finalists: Participant[];
   winner: WinnerRecord;
-  onSelectorTick?: (intensity: 'soft' | 'strong') => void;
 };
 
-const SELECTOR_DELAYS = [110, 115, 130, 150, 175, 220, 370, 500];
-const FINALIST_DELAYS = [180, 260, 360, 480, 500];
-const BURST_PARTICLES = Array.from({ length: 20 }, (_, index) => index);
+type BurstPoint = { x: number; y: number; offsetX: number; offsetY: number };
 
-const phaseCopy: Partial<Record<DrawPhase, string>> = {
-  awakening: 'FIND YOUR NUMBER',
-  searching: 'THE LANTERNS ARE RUSHING',
-  selecting: 'THE GOLDEN SELECTOR IS CHOOSING',
-  finalists: 'ONLY THREE LANTERNS REMAIN',
-  locking: 'THE LUCKY LANTERN IS LOCKED',
-  charging: 'A WINNER IS GATHERING LIGHT',
-  burst: 'LUCKY NUMBER',
-  revealing: 'CONGRATULATIONS',
-};
+const BURST_FRAGMENTS = Array.from({ length: 20 }, (_, index) => index);
+const FINAL_PHASES = new Set<DrawPhase>(['magnifying', 'charging', 'burst', 'revealing']);
 
-function clampPosition(value: number): number {
-  return Math.max(4, Math.min(96, value));
+function findLantern(number: string): HTMLElement | null {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-flight-number]'))
+    .find((element) => element.dataset.flightNumber === number) ?? null;
 }
 
-export function FlyingNumberLanterns({ phase, candidates, winner, onSelectorTick }: FlyingNumberLanternsProps) {
-  const finalists = useMemo(() => {
-    const others = candidates.filter(({ number }) => number !== winner.number).slice(0, 2);
-    return [others[0], winner, others[1]].filter((participant): participant is Participant => Boolean(participant));
-  }, [candidates, winner]);
-  const finalistNumbers = useMemo(() => finalists.map(({ number }) => number), [finalists]);
-  const [selectedNumber, setSelectedNumber] = useState(candidates[0]?.number ?? winner.number);
-  const usesFinalists = phase === 'finalists' || phase === 'locking';
-  const winnerOnly = phase === 'charging' || phase === 'burst' || phase === 'revealing';
-  const visibleParticipants = winnerOnly ? [winner] : usesFinalists ? finalists : candidates;
-  const selectorActive = phase === 'selecting' || phase === 'finalists';
-  useEffect(() => {
-    if (!selectorActive) {
-      setSelectedNumber(phase === 'locking' || winnerOnly ? winner.number : candidates[0]?.number ?? winner.number);
-      return;
-    }
+function cubicPoint(start: number, first: number, second: number, end: number, t: number): number {
+  const inverse = 1 - t;
+  return inverse ** 3 * start + 3 * inverse ** 2 * t * first + 3 * inverse * t ** 2 * second + t ** 3 * end;
+}
 
-    const candidateNumbers = candidates.map(({ number }) => number);
-    const otherNumbers = finalists.filter(({ number }) => number !== winner.number).map(({ number }) => number);
-    const finalistStops = [otherNumbers[0], otherNumbers[1], winner.number, otherNumbers[1], otherNumbers[0], winner.number]
-      .filter((number): number is string => Boolean(number));
-    const stops = phase === 'finalists' && finalistStops.length > 0
-      ? finalistStops
-      : candidateNumbers.length > 0 ? candidateNumbers : [winner.number];
-    const delays = phase === 'finalists' ? FINALIST_DELAYS : SELECTOR_DELAYS;
-    let cursor = 0;
-    let timeout = 0;
+/** Dense compositor keyframes approximate a single cubic path without React frame updates. */
+function createFlightKeyframes(plan: LanternFlightPlan): Keyframe[] {
+  const finalist = plan.finalistRole !== null;
+  const endX = finalist ? plan.finalistShiftVw + 50 - plan.launchLeftPercent : plan.prevailingWindVw * 2;
+  const endY = finalist ? 43 - plan.launchTopVh : -plan.launchTopVh - 24;
+  const frames: Keyframe[] = [];
 
-    setSelectedNumber(stops[0]);
-    const tick = () => {
-      cursor += 1;
-      setSelectedNumber(stops[cursor % stops.length]);
-      onSelectorTick?.(phase === 'finalists' && cursor >= 3 ? 'strong' : 'soft');
-      if (cursor < delays.length) timeout = window.setTimeout(tick, delays[cursor]);
-    };
-    timeout = window.setTimeout(tick, delays[0]);
-
-    return () => window.clearTimeout(timeout);
-  }, [candidates, finalists, onSelectorTick, phase, selectorActive, winner.number, winnerOnly]);
-
-  const finalistIndex = (number: string) => finalistNumbers.indexOf(number);
-
-  function lanternStyle(participant: Participant, index: number): CSSProperties {
-    const candidateIndex = candidates.findIndex(({ number }) => number === participant.number);
-    const finalistPosition = finalistIndex(participant.number);
-    let x = 6 + (index % 7) * 14.5;
-    let y = 20 + Math.floor(index / 7) * (56 / Math.max(1, Math.ceil(visibleParticipants.length / 7) - 1));
-
-    if (usesFinalists && finalistPosition >= 0) {
-      const positions = finalists.length === 1
-        ? [{ x: 50, y: 39 }]
-        : finalists.length === 2
-          ? [{ x: 37, y: 42 }, { x: 63, y: 42 }]
-          : [{ x: 32, y: 46 }, { x: 50, y: 31 }, { x: 68, y: 46 }];
-      x = positions[finalistPosition].x;
-      y = positions[finalistPosition].y;
-    } else if (winnerOnly) {
-      x = 50;
-      y = 38;
-    }
-
-    const lane = Math.max(candidateIndex, 0);
-    const sweepX = ((lane * 37) % 112) - 56;
-    const sweepY = ((lane * 19) % 48) - 30;
-    const escapeDirection = finalistPosition === 0 ? -1 : 1;
-    return {
-      '--lantern-left': `${clampPosition(x)}%`,
-      '--lantern-top': `${y}%`,
-      '--lantern-index': lane,
-      '--lantern-delay': `${(lane % 20) * 34}ms`,
-      '--lantern-speed': `${0.82 + (lane % 6) * 0.13}s`,
-      '--awaken-delay': `${lane * 16}ms`,
-      '--awaken-speed': `${0.48 + (lane % 7) * 0.08}s`,
-      '--lantern-depth': `${0.66 + (lane % 5) * 0.18}`,
-      '--rush-x': `${sweepX}vw`,
-      '--rush-y': `${sweepY}vh`,
-      '--lantern-tilt': `${((lane * 13) % 18) - 9}deg`,
-      '--escape-x': `${escapeDirection * 125}vw`,
-      '--particle-x': `${(Math.cos(lane) * 140).toFixed(0)}px`,
-      '--particle-y': `${(Math.sin(lane) * 140).toFixed(0)}px`,
-      zIndex: String(1 + lane % 5),
-    } as CSSProperties;
+  for (let index = 0; index <= 48; index += 1) {
+    const t = index / 48;
+    const x = cubicPoint(0, plan.curveOneVw, plan.curveTwoVw, endX, t);
+    const y = cubicPoint(19, -11, finalist ? endY + 18 : -57, endY, t);
+    const scale = plan.depthScale * (0.76 + 0.3 * Math.sin(Math.PI * t) - (finalist ? 0 : 0.06 * t));
+    const rotation = Math.sin(Math.PI * 2 * t) * 2.1;
+    const opacity = t < 0.12
+      ? plan.depthOpacity * (t / 0.12)
+      : finalist || t < 0.94
+        ? plan.depthOpacity
+        : plan.depthOpacity * Math.max(0, (1 - t) / 0.06);
+    frames.push({
+      offset: t,
+      opacity,
+      transform: `translate3d(calc(-50% + ${x}vw), ${y}vh, 0) scale(${scale}) rotate(${rotation}deg)`,
+    });
   }
 
+  return frames;
+}
+
+function lanternStyle(plan: LanternFlightPlan): CSSProperties {
+  return {
+    '--launch-delay': `${plan.launchDelayMs}ms`,
+    '--flight-duration': `${plan.flightDurationMs}ms`,
+    '--launch-left': `${plan.launchLeftPercent}%`,
+    '--launch-top': `${plan.launchTopVh}vh`,
+    '--curve-one-vw': `${plan.curveOneVw}vw`,
+    '--curve-one-half-vw': `${plan.curveOneVw * 0.5}vw`,
+    '--curve-one-half-neg-vw': `${plan.curveOneVw * -0.5}vw`,
+    '--curve-one-neg-vw': `${plan.curveOneVw * -1}vw`,
+    '--curve-two-vw': `${plan.curveTwoVw}vw`,
+    '--finalist-shift-vw': `${plan.finalistShiftVw}vw`,
+    '--center-shift-vw': `${50 - plan.launchLeftPercent}vw`,
+    '--finalist-top-vh': `${43 - plan.launchTopVh}vh`,
+    '--depart-top-vh': `${43 - plan.launchTopVh - 132}vh`,
+    '--depth-scale': plan.depthScale,
+    '--launch-scale': plan.depthScale * 0.76,
+    '--float-scale': plan.depthScale * 1.06,
+    '--exit-scale': plan.depthScale * 0.7,
+    '--depth-opacity': plan.depthOpacity,
+    '--lantern-rotation': `${plan.curveTwoVw * 0.48}deg`,
+    '--lantern-rotation-negative': `${plan.curveTwoVw * -0.48}deg`,
+    '--lantern-rotation-soft-negative': `${plan.curveTwoVw * -0.48 * 0.65}deg`,
+  } as CSSProperties;
+}
+
+export function FlyingNumberLanterns({ phase, candidates, finalists, winner }: FlyingNumberLanternsProps) {
+  const flightPlans = useMemo(
+    () => createLanternFlightPlans(candidates, finalists, winner, (max) => Math.floor(Math.random() * max)),
+    [candidates, finalists, winner],
+  );
+  const finalistNumbers = useMemo(() => new Set(finalists.map(({ number }) => number)), [finalists]);
+  const [departedNumbers, setDepartedNumbers] = useState<Set<string>>(() => new Set());
+  const [burstPoint, setBurstPoint] = useState<BurstPoint | null>(null);
+  const animationHandles = useMemo(() => new Map<string, Animation>(), [flightPlans]);
+
+  useLayoutEffect(() => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>('[data-flight-number]'));
+    if (typeof Element.prototype.animate !== 'function') return;
+
+    elements.forEach((element) => {
+      const number = element.dataset.flightNumber;
+      if (!number) return;
+      const plan = flightPlans.find(({ number: planNumber }) => planNumber === number);
+      if (!plan) return;
+      const animation = element.animate(createFlightKeyframes(plan), {
+        duration: plan.flightDurationMs,
+        delay: plan.launchDelayMs,
+        easing: 'linear',
+        fill: 'both',
+      });
+      element.dataset.motionNative = 'true';
+      animationHandles.set(number, animation);
+    });
+
+    return () => {
+      animationHandles.forEach((animation) => animation.cancel());
+      animationHandles.clear();
+    };
+  }, [animationHandles, flightPlans]);
+
+  useEffect(() => {
+    const timers = flightPlans.flatMap((plan) => {
+      if (plan.exitAtMs === null) return [];
+      return [window.setTimeout(() => {
+        setDepartedNumbers((departed) => new Set(departed).add(plan.number));
+      }, plan.exitAtMs)];
+    });
+    return () => timers.forEach(window.clearTimeout);
+  }, [flightPlans]);
+
+  useEffect(() => {
+    if (phase !== 'separating') return;
+    const timeout = window.setTimeout(() => {
+      setDepartedNumbers((departed) => {
+        const next = new Set(departed);
+        finalists.forEach(({ number }) => {
+          if (number !== winner.number) next.add(number);
+        });
+        return next;
+      });
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, [finalists, phase, winner.number]);
+
+  useLayoutEffect(() => {
+    if (phase !== 'separating' && phase !== 'magnifying' && phase !== 'charging') return;
+    const winnerElement = findLantern(winner.number);
+    if (!winnerElement || typeof winnerElement.animate !== 'function') return;
+
+    const current = getComputedStyle(winnerElement).transform;
+    const centerX = 'calc(-50% + var(--center-shift-vw))';
+    const finalistX = 'calc(-50% + var(--center-shift-vw) + var(--finalist-shift-vw))';
+    const top = 'var(--finalist-top-vh)';
+    let keyframes: Keyframe[] | null = null;
+    let duration = 0;
+    let easing = 'cubic-bezier(.22,.78,.26,1)';
+
+    if (phase === 'separating') {
+      keyframes = [
+        { transform: current, opacity: 1, offset: 0 },
+        { transform: `translate3d(${centerX}, ${top}, 0) scale(var(--depth-scale))`, opacity: 1, offset: 1 },
+      ];
+      duration = 1200;
+    } else if (phase === 'magnifying') {
+      keyframes = [
+        { transform: current, opacity: 1, offset: 0 },
+        { transform: `translate3d(${centerX}, ${top}, 0) scale(1.78)`, opacity: 1, offset: 0.76 },
+        { transform: `translate3d(${centerX}, ${top}, 0) scale(1.68)`, opacity: 1, offset: 1 },
+      ];
+      duration = 1000;
+    } else {
+      keyframes = [
+        { transform: current, offset: 0 },
+        { transform: `translate3d(${centerX}, ${top}, 0) scale(1.9)`, offset: 0.7 },
+        { transform: `translate3d(${centerX}, ${top}, 0) scale(1.78)`, offset: 1 },
+      ];
+      duration = 500;
+      easing = 'cubic-bezier(.2,.85,.3,1)';
+    }
+
+    const existing = animationHandles.get(winner.number);
+    existing?.cancel();
+    const animation = winnerElement.animate(keyframes, { duration, easing, fill: 'both' });
+    animationHandles.set(winner.number, animation);
+
+    if (phase === 'separating') {
+      finalists.forEach(({ number }) => {
+        if (number === winner.number) return;
+        const element = findLantern(number);
+        if (!element || typeof element.animate !== 'function') return;
+        const from = getComputedStyle(element).transform;
+        const depart = element.animate([
+          { transform: from, opacity: 1, offset: 0 },
+          { transform: `translate3d(${finalistX}, calc(${top} - 104vh), 0) scale(var(--depth-scale)) rotate(3deg)`, opacity: 0.94, offset: 0.78 },
+          { transform: `translate3d(${finalistX}, calc(${top} - 136vh), 0) scale(var(--exit-scale)) rotate(7deg)`, opacity: 0, offset: 1 },
+        ], { duration: 1200, easing: 'cubic-bezier(.18,.82,.26,1)', fill: 'both' });
+        animationHandles.set(number, depart);
+      });
+    }
+  }, [animationHandles, finalists, phase, winner.number]);
+
+  useLayoutEffect(() => {
+    if (phase !== 'burst') return;
+    const layer = document.querySelector<HTMLElement>('[data-testid="flying-number-lanterns"]');
+    const lantern = findLantern(winner.number);
+    if (!layer || !lantern) return;
+    const layerBounds = layer.getBoundingClientRect();
+    const lanternBounds = lantern.getBoundingClientRect();
+    if (layerBounds.width === 0 || layerBounds.height === 0) {
+      setBurstPoint(null);
+      return;
+    }
+    const x = lanternBounds.left - layerBounds.left + lanternBounds.width / 2;
+    const y = lanternBounds.top - layerBounds.top + lanternBounds.height / 2;
+    setBurstPoint({
+      x,
+      y,
+      offsetX: x - layerBounds.width / 2,
+      offsetY: y - layerBounds.height * 0.43,
+    });
+  }, [phase, winner.number]);
+
+  const active = candidates.filter(({ number }) => !departedNumbers.has(number));
+  const winnerOnly = FINAL_PHASES.has(phase);
+  const finalistPhase = phase === 'finalists' || phase === 'separating';
+  const visibleParticipants = winnerOnly
+    ? active.filter(({ number }) => number === winner.number)
+    : finalistPhase
+      ? active.filter(({ number }) => finalistNumbers.has(number))
+      : active;
+  const planByNumber = new Map(flightPlans.map((plan) => [plan.number, plan]));
+  const burstStyle = {
+    '--burst-x': `${burstPoint?.x ?? 50}${burstPoint ? 'px' : '%'}`,
+    '--burst-y': `${burstPoint?.y ?? 43}${burstPoint ? 'px' : '%'}`,
+    '--burst-offset-x': `${burstPoint?.offsetX ?? 0}px`,
+    '--burst-offset-y': `${burstPoint?.offsetY ?? 0}px`,
+  } as CSSProperties;
+
   return (
-    <div className={`flying-number-lanterns flying-number-lanterns--${phase}`} data-testid="flying-number-lanterns">
-      <div className="flying-number-lanterns__roster" role="list" aria-label="Draw candidates">
-        {visibleParticipants.map((participant, index) => {
-          const locked = phase === 'locking' && participant.number === winner.number;
-          const selected = selectorActive && participant.number === selectedNumber;
-          const flyingAway = phase === 'locking' && participant.number !== winner.number;
-          const finalistPosition = finalistIndex(participant.number);
+    <div className={`flying-number-lanterns flying-number-lanterns--${phase}`} data-testid="flying-number-lanterns" style={burstStyle}>
+      <div className="flying-number-lanterns__roster" role="list" aria-label="抽奖号码">
+        {visibleParticipants.map((participant) => {
+          const plan = planByNumber.get(participant.number);
+          if (!plan) return null;
+          const winnerFocus = participant.number === winner.number && winnerOnly;
+          const winnerGliding = phase === 'separating' && participant.number === winner.number;
+          const finalistLeaving = phase === 'separating' && finalistNumbers.has(participant.number) && participant.number !== winner.number;
           const classes = [
             'flying-number-lantern',
-            phase === 'awakening' ? 'flying-number-lantern--awakening' : '',
-            phase === 'searching' ? 'flying-number-lantern--rushing' : '',
-            phase === 'finalists' ? 'flying-number-lantern--orbiting' : '',
-            phase === 'charging' ? 'flying-number-lantern--charging' : '',
-            phase === 'burst' || phase === 'revealing' ? 'flying-number-lantern--bursting' : '',
-            selected ? 'flying-number-lantern--selected' : '',
-            locked ? 'flying-number-lantern--locked' : '',
-            flyingAway ? 'flying-number-lantern--flying-away' : '',
+            'flying-number-lantern--rising',
+            plan.finalistRole === 'winner' ? 'flying-number-lantern--finalist-winner' : '',
+            plan.finalistRole === 'other' ? 'flying-number-lantern--finalist-other' : '',
+            finalistLeaving ? 'flying-number-lantern--finalist-leaving' : '',
+            winnerGliding ? 'flying-number-lantern--winner-gliding' : '',
+            winnerFocus ? 'flying-number-lantern--winner-focus' : '',
+            phase === 'charging' && winnerFocus ? 'flying-number-lantern--charging' : '',
+            (phase === 'burst' || phase === 'revealing') && winnerFocus ? 'flying-number-lantern--bursting' : '',
           ].filter(Boolean).join(' ');
 
           return (
             <div
               className={classes}
               role="listitem"
-              aria-label={`Participant number ${participant.number}`}
+              aria-label={`号码 ${participant.number}`}
+              data-flight-number={participant.number}
               data-number={participant.number}
-              data-finalist-index={finalistPosition >= 0 ? finalistPosition : undefined}
+              data-motion="up"
+              data-depth={plan.depth}
+              data-finalist={plan.finalistRole !== null ? 'true' : undefined}
+              data-finalist-role={plan.finalistRole ?? undefined}
               key={participant.number}
-              style={lanternStyle(participant, index)}
+              style={lanternStyle(plan)}
+              onAnimationEnd={(event) => {
+                if (event.currentTarget !== event.target) return;
+                if (event.animationName === 'lantern-ascent-away' || event.animationName === 'lantern-finalist-depart') {
+                  setDepartedNumbers((departed) => new Set(departed).add(participant.number));
+                }
+              }}
             >
-              <span className="flying-number-lantern__selector" aria-hidden="true" />
-              <span className="flying-number-lantern__paper">
-                <span className="flying-number-lantern__frame" aria-hidden="true" />
-                <span className="flying-number-lantern__flame" aria-hidden="true" />
-                <span className="flying-number-lantern__number">{participant.number}</span>
+              <span className="flying-number-lantern__visual">
+                <span className="flying-number-lantern__paper">
+                  <span className="flying-number-lantern__frame" aria-hidden="true" />
+                  <span className="flying-number-lantern__flame" aria-hidden="true" />
+                  <span className="flying-number-lantern__number">{participant.number}</span>
+                  <span className="flying-number-lantern__frame-fragment" aria-hidden="true" />
+                </span>
+                <span className="flying-number-lantern__reflection" />
               </span>
-              <span className="flying-number-lantern__reflection" aria-hidden="true" />
             </div>
           );
         })}
       </div>
 
-      {(phase === 'charging' || phase === 'burst' || phase === 'revealing') && <span className="flying-number-lanterns__water-ripple" aria-hidden="true" />}
+      {winnerOnly && <span className="flying-number-lanterns__water-ripple" aria-hidden="true" />}
       {(phase === 'burst' || phase === 'revealing') && <>
         <span className="flying-number-lanterns__shockwave" aria-hidden="true" />
-        {BURST_PARTICLES.map((index) => (
-          <span className="flying-number-lanterns__particle" data-testid="lantern-burst-particle" style={{
-            '--particle-angle': `${index * 18}deg`,
-            '--particle-distance': `${96 + (index % 5) * 30}px`,
-            '--particle-delay': `${(index % 5) * 18}ms`,
-          } as CSSProperties} key={index} aria-hidden="true" />
+        {BURST_FRAGMENTS.map((index) => (
+          <span
+            className="flying-number-lanterns__particle"
+            data-testid="lantern-burst-fragment"
+            style={{
+              '--particle-angle': `${index * 18}deg`,
+              '--particle-distance': `${96 + (index % 5) * 30}px`,
+              '--particle-delay': `${(index % 5) * 18}ms`,
+            } as CSSProperties}
+            key={index}
+            aria-hidden="true"
+          />
         ))}
-        <div className="flying-number-lanterns__emergence" data-testid="flying-number-lanterns__emergence" role="status" aria-label="Winning number" aria-live="polite">
+        <div className="flying-number-lanterns__emergence" data-testid="flying-number-lanterns__emergence" role="status" aria-label="中奖号码" aria-live="polite">
+          <p>中奖号码</p>
           <span>{winner.number}</span>
-          {phase === 'revealing' && <p>CONGRATULATIONS</p>}
+          {phase === 'revealing' && <p className="flying-number-lanterns__congratulations">恭喜！</p>}
         </div>
       </>}
-
-      {phase !== 'revealing' && <p className="flying-number-lanterns__prompt" aria-hidden="true">{phaseCopy[phase]}</p>}
     </div>
   );
 }

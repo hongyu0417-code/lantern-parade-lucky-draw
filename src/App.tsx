@@ -3,14 +3,15 @@ import { AudioController } from './components/AudioController';
 import { LanternStage } from './components/LanternStage';
 import { OperatorPanel } from './components/OperatorPanel';
 import { WinnerHistory } from './components/WinnerHistory';
-import { createCandidateLanterns } from './draw/flyingLanterns';
+import { createCandidateLanterns, createFinalistLanterns } from './draw/flyingLanterns';
+import { createSecureRandomIndex } from './draw/random';
 import { createDrawState, drawReducer, type DrawOverlay } from './draw/reducer';
 import { createDefaultRecord, readDrawRecord, reserveDraw, resetAllDrawData, resetDrawHistory, undoLastDraw, updateDrawSettings, writeDrawRecord } from './draw/persistence';
 import type { DrawSettings, PersistedDrawRecord } from './draw/types';
 import { useDrawTimeline } from './hooks/useDrawTimeline';
 import { useFullscreen } from './hooks/useFullscreen';
 
-const SAVE_ERROR = 'Unable to save draw data. Check browser storage and try again.';
+const SAVE_ERROR = '无法保存抽奖数据，请检查浏览器存储空间后重试。';
 
 function initialRecord(): PersistedDrawRecord {
   try { return readDrawRecord(window.localStorage); }
@@ -55,9 +56,11 @@ export default function App() {
   useEffect(() => {
     audio.current?.setMuted(!state.record.settings.soundEnabled);
     if (previousPhase.current !== state.phase) {
-      if (state.phase === 'searching') audio.current?.playSearchingCue();
-      if (state.phase === 'selecting' || state.phase === 'finalists') audio.current?.playSelectionCue();
-      if (state.phase === 'locking') audio.current?.playLockCue();
+      if (state.phase === 'awakening') audio.current?.playLaunchCue();
+      if (state.phase === 'ascending') audio.current?.playAscentCue();
+      if (state.phase === 'finalists') audio.current?.playFinalistsCue();
+      if (state.phase === 'separating') audio.current?.playSeparationCue();
+      if (state.phase === 'magnifying') audio.current?.playMagnifyCue();
       if (state.phase === 'charging') audio.current?.playChargeCue();
       if (state.phase === 'burst') audio.current?.playBurstCue();
       if (state.phase === 'winner' && previousPhase.current !== 'idle') audio.current?.playWinnerCue();
@@ -81,32 +84,26 @@ export default function App() {
   const startDraw = useCallback(() => {
     if (state.phase !== 'idle' || state.overlay || drawLocked.current) return;
     if (recordRef.current.availableNumbers.length === 0) {
-      setNotice('No eligible lanterns remain. Change the range or reset draw history in Operator settings.');
+      setNotice('暂无可抽取的号码，请调整号码范围或重置中奖记录。');
       return;
     }
     drawLocked.current = true;
     const controller = audio.current;
     controller?.initialize();
     try {
+      const randomIndex = createSecureRandomIndex();
       const eligibleBeforeDraw = recordRef.current.availableNumbers;
-      const next = reserveDraw(recordRef.current, (max) => Math.floor(Math.random() * max), new Date().toISOString());
+      const next = reserveDraw(recordRef.current, randomIndex, new Date().toISOString());
       if (!next.activeWinner) throw new Error('The draw did not reserve a winner.');
-      const animationCandidates = createCandidateLanterns(
-        eligibleBeforeDraw,
-        next.activeWinner,
-        (max) => Math.floor(Math.random() * max),
-      );
+      const animationCandidates = createCandidateLanterns(eligibleBeforeDraw, next.activeWinner, randomIndex);
+      const animationFinalists = createFinalistLanterns(animationCandidates, next.activeWinner, randomIndex);
       if (!persist(next)) { drawLocked.current = false; return; }
-      dispatch({ type: 'RESERVE_DRAW', record: next, animationCandidates });
+      dispatch({ type: 'RESERVE_DRAW', record: next, animationCandidates, animationFinalists });
     } catch {
       drawLocked.current = false;
-      setNotice('The draw could not start. Check the active pool in Operator settings.');
+      setNotice('无法开始抽奖，请检查当前参与名单。');
     }
   }, [persist, state.overlay, state.phase]);
-
-  const onSelectorTick = useCallback((intensity: 'soft' | 'strong') => {
-    audio.current?.playTickCue(intensity === 'strong');
-  }, []);
 
   const nextDraw = useCallback(() => {
     if (state.phase !== 'winner') return;
@@ -127,14 +124,14 @@ export default function App() {
   }, [persist]);
 
   const requestFullscreen = useCallback(() => {
-    void (isFullscreen ? exitFullscreen() : enterFullscreen()).catch(() => setNotice('Fullscreen is unavailable in this browser.'));
+    void (isFullscreen ? exitFullscreen() : enterFullscreen()).catch(() => setNotice('此浏览器暂不支持全屏显示。'));
     dispatch({ type: 'CLOSE_OVERLAY' });
   }, [enterFullscreen, exitFullscreen, isFullscreen]);
 
   const showHistory = useCallback(() => {
     if (!isFullscreen) { toggleOverlay('history'); return; }
     void exitFullscreen().then(() => dispatch({ type: 'OPEN_OVERLAY', overlay: 'history' }))
-      .catch(() => setNotice('Exit fullscreen to view winner history.'));
+      .catch(() => setNotice('暂时无法退出全屏，请退出后再查看中奖记录。'));
   }, [exitFullscreen, isFullscreen, toggleOverlay]);
 
   const updateRecord = useCallback((record: PersistedDrawRecord): boolean => {
@@ -167,7 +164,7 @@ export default function App() {
 
   const saveSettings = (settings: DrawSettings) => {
     try { updateRecord(updateDrawSettings(recordRef.current, settings)); }
-    catch { setValidationErrors(['Please check the range and imported participant list.']); }
+    catch { setValidationErrors(['请检查号码范围和导入的参与者名单。']); }
   };
 
   const undo = () => { if (updateRecord(undoLastDraw(recordRef.current))) drawLocked.current = false; };
@@ -182,7 +179,7 @@ export default function App() {
   return <>
     <LanternStage
       phase={state.phase} activeWinner={state.record.activeWinner}
-      animationCandidates={state.animationCandidates} onSelectorTick={onSelectorTick}
+      animationCandidates={state.animationCandidates} animationFinalists={state.animationFinalists}
       onDraw={startDraw} onNext={nextDraw} onHistory={showHistory}
       reducedMotion={reducedMotion} emptyPool={state.record.availableNumbers.length === 0}
       notice={notice} isFullscreen={isFullscreen} soundEnabled={state.record.settings.soundEnabled}

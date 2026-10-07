@@ -16,7 +16,7 @@ export function buildNumericPool(start: string, end: string): Participant[] {
   if (last < first) throw new Error('End must be greater than or equal to start.');
   if (last - first >= MAX_PARTICIPANTS) throw new Error('A draw pool cannot exceed 10,000 participants.');
 
-  const width = Math.max(start.length, end.length);
+  const width = Math.max(last < 1000 ? 3 : 1, start.length, end.length);
   const participants: Participant[] = [];
   for (let value = first; value <= last; value += 1) {
     participants.push({ number: String(value).padStart(width, '0') });
@@ -42,7 +42,7 @@ function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[
   const finishRow = () => {
     row.push(field.trim());
     if (invalidRow) {
-      errors.push(`Row ${rowStartLine}: malformed quote syntax.`);
+      errors.push(`第 ${rowStartLine} 行：引号格式有误。`);
     } else {
       rows.push(row);
       rowLines.push(rowStartLine);
@@ -95,11 +95,11 @@ function parseCsvRows(input: string): { rows: { cells: string[]; line: number }[
     }
   }
   if (quoted) {
-    errors.push(`Row ${rowStartLine}: unclosed quote starting on row ${quoteStartLine}.`);
+    errors.push(`第 ${rowStartLine} 行：引号未闭合（从第 ${quoteStartLine} 行开始）。`);
   } else if (row.length > 0 || field.length > 0 || input.length === 0 || !/[\r\n]$/.test(input)) {
     finishRow();
   }
-  if (tooManyRows) errors.push('A CSV pool cannot exceed 10,000 participants.');
+  if (tooManyRows) errors.push('参与者名单不能超过 10,000 人。');
   return {
     rows: rows.map((cells, index) => ({ cells, line: rowLines[index] })),
     errors,
@@ -115,22 +115,23 @@ export function parseParticipantsCsv(input: string): { participants: Participant
   if (meaningfulRows.length === 0) return { participants, errors };
 
   const firstCells = meaningfulRows[0].cells.map((cell) => cell.toLowerCase());
-  const hasHeader = firstCells[0] === 'number' || firstCells[0] === 'id';
+  const headerCell = firstCells[0]?.toLowerCase();
+  const hasHeader = ['number', 'id', '号码', '编号'].includes(headerCell);
   const expectedColumns = hasHeader ? meaningfulRows[0].cells.length : undefined;
   const dataRows = hasHeader ? meaningfulRows.slice(1) : meaningfulRows;
-  if (dataRows.length > MAX_PARTICIPANTS || errors.some((error) => error.includes('10,000 participants'))) {
-    return { participants: [], errors: [...errors, ...(dataRows.length > MAX_PARTICIPANTS && !errors.some((error) => error.includes('10,000 participants')) ? ['A CSV pool cannot exceed 10,000 participants.'] : [])] };
+  if (dataRows.length > MAX_PARTICIPANTS || errors.some((error) => error.includes('10,000'))) {
+    return { participants: [], errors: [...errors, ...(dataRows.length > MAX_PARTICIPANTS && !errors.some((error) => error.includes('10,000')) ? ['参与者名单不能超过 10,000 人。'] : [])] };
   }
   const seen = new Set<string>();
 
   for (const { cells, line } of dataRows) {
     if (cells.length < 1 || cells.length > 2 || !cells[0] || (expectedColumns !== undefined && cells.length !== expectedColumns)) {
-      errors.push(`Row ${line}: expected a participant number and optional name.`);
+      errors.push(`第 ${line} 行：请填写参与者号码，姓名可选。`);
       continue;
     }
     const number = cells[0];
     if (seen.has(number)) {
-      errors.push(`Row ${line}: duplicate participant number "${number}".`);
+      errors.push(`第 ${line} 行：号码“${number}”重复。`);
       continue;
     }
     seen.add(number);

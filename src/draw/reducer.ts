@@ -8,10 +8,11 @@ export type DrawState = {
   phase: DrawPhase;
   overlay: DrawOverlay | null;
   animationCandidates: Participant[];
+  animationFinalists: Participant[];
 };
 
 export type DrawAction =
-  | { type: 'RESERVE_DRAW'; record: PersistedDrawRecord; animationCandidates: Participant[] }
+  | { type: 'RESERVE_DRAW'; record: PersistedDrawRecord; animationCandidates: Participant[]; animationFinalists: Participant[] }
   | { type: 'ADVANCE_PHASE'; phase: DrawPhase }
   | { type: 'SKIP_TO_WINNER' }
   | { type: 'RETURN_TO_IDLE' }
@@ -21,11 +22,13 @@ export type DrawAction =
   | { type: 'UPDATE_RECORD'; record: PersistedDrawRecord };
 
 const NEXT_PHASE: Partial<Record<DrawPhase, DrawPhase>> = {
-  awakening: 'searching',
-  searching: 'selecting',
-  selecting: 'finalists',
-  finalists: 'locking',
-  locking: 'charging',
+  preparing: 'awakening',
+  awakening: 'ascending',
+  ascending: 'narrowing',
+  narrowing: 'finalists',
+  finalists: 'separating',
+  separating: 'magnifying',
+  magnifying: 'charging',
   charging: 'burst',
   burst: 'revealing',
   revealing: 'winner',
@@ -37,21 +40,39 @@ export function createDrawState(record: PersistedDrawRecord): DrawState {
     phase: record.activeWinner ? 'winner' : 'idle',
     overlay: null,
     animationCandidates: [],
+    animationFinalists: [],
   };
 }
 
 export function drawReducer(state: DrawState, action: DrawAction): DrawState {
   switch (action.type) {
-    case 'RESERVE_DRAW':
-      if (state.phase !== 'idle' || state.record.activeWinner || !action.record.activeWinner
-        || !action.animationCandidates.some(({ number }) => number === action.record.activeWinner?.number)) return state;
-      return { record: action.record, phase: 'awakening', overlay: null, animationCandidates: action.animationCandidates };
+    case 'RESERVE_DRAW': {
+      const winnerNumber = action.record.activeWinner?.number;
+      const candidateNumbers = new Set(action.animationCandidates.map(({ number }) => number));
+      const finalistNumbers = new Set(action.animationFinalists.map(({ number }) => number));
+      const expectedFinalists = Math.min(3, candidateNumbers.size);
+      if (state.phase !== 'idle' || state.record.activeWinner || !winnerNumber
+        || !candidateNumbers.has(winnerNumber) || !finalistNumbers.has(winnerNumber)
+        || candidateNumbers.size !== action.animationCandidates.length
+        || finalistNumbers.size !== action.animationFinalists.length
+        || finalistNumbers.size !== expectedFinalists
+        || action.animationFinalists.some(({ number }) => !candidateNumbers.has(number))) return state;
+      return {
+        record: action.record,
+        phase: 'preparing',
+        overlay: null,
+        animationCandidates: action.animationCandidates,
+        animationFinalists: action.animationFinalists,
+      };
+    }
     case 'ADVANCE_PHASE':
       if (NEXT_PHASE[state.phase] !== action.phase) return state;
-      return { ...state, phase: action.phase, animationCandidates: action.phase === 'winner' ? [] : state.animationCandidates };
+      return action.phase === 'winner'
+        ? { ...state, phase: action.phase, animationCandidates: [], animationFinalists: [] }
+        : { ...state, phase: action.phase };
     case 'SKIP_TO_WINNER':
       if (state.phase === 'idle' || state.phase === 'winner' || !state.record.activeWinner) return state;
-      return { ...state, phase: 'winner', animationCandidates: [] };
+      return { ...state, phase: 'winner', animationCandidates: [], animationFinalists: [] };
     case 'RETURN_TO_IDLE':
       if (state.phase !== 'winner') return state;
       return {
@@ -59,6 +80,7 @@ export function drawReducer(state: DrawState, action: DrawAction): DrawState {
         phase: 'idle',
         overlay: null,
         animationCandidates: [],
+        animationFinalists: [],
       };
     case 'OPEN_OVERLAY':
       if (state.phase !== 'idle' && state.phase !== 'winner') return state;
@@ -79,6 +101,7 @@ export function drawReducer(state: DrawState, action: DrawAction): DrawState {
         record: action.record,
         phase: action.record.activeWinner ? 'winner' : 'idle',
         animationCandidates: [],
+        animationFinalists: [],
       };
     default:
       return state;

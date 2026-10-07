@@ -64,13 +64,13 @@ export function OperatorPanel({
     if (isDrawActive) return;
     const nextErrors: string[] = [];
     if (!validRange(startNumber, endNumber)) {
-      nextErrors.push('Enter whole number bounds with an end number at least as large as the start.');
+      nextErrors.push('请输入有效的整数范围，并确保结束号码不小于起始号码。');
     } else if (Number(endNumber) - Number(startNumber) >= MAX_PARTICIPANTS) {
-      nextErrors.push('A draw pool cannot exceed 10,000 participants.');
+      nextErrors.push('参与者名单不能超过 10,000 人。');
     }
     if (importPreview?.errors.length) nextErrors.push(...importPreview.errors);
     if (csv.trim() && importPreview?.participants.length === 0) {
-      nextErrors.push('Add at least one participant number to the CSV.');
+      nextErrors.push('请至少填写一位参与者的号码。');
     }
     setLocalErrors(nextErrors);
     if (nextErrors.length > 0) return;
@@ -88,42 +88,42 @@ export function OperatorPanel({
       <section className="operator-dialog operator-panel" role="dialog" aria-modal="true" aria-labelledby="operator-panel-heading" onKeyDown={containTab}>
         <header className="operator-dialog__header">
           <div>
-            <p className="operator-dialog__eyebrow">BEHIND THE LANTERNS</p>
-            <h2 id="operator-panel-heading">Operator settings</h2>
+            <p className="operator-dialog__eyebrow">灯笼节 · 管理面板</p>
+            <h2 id="operator-panel-heading">抽奖设置</h2>
           </div>
-          <button className="operator-dialog__close" type="button" aria-label="Close operator settings" onClick={onClose} autoFocus>×</button>
+          <button className="operator-dialog__close" type="button" aria-label="关闭抽奖设置" onClick={onClose} autoFocus>×</button>
         </header>
 
-        <div className="operator-panel__counts" aria-label="Draw counts">
-          <div><strong>{remainingCount}</strong><span>Remaining</span></div>
-          <div><strong>{winnerCount}</strong><span>Winners drawn</span></div>
-          <div><strong>{settings.participants?.length ?? Number(settings.endNumber) - Number(settings.startNumber) + 1}</strong><span>In active pool</span></div>
+        <div className="operator-panel__counts" aria-label="抽奖人数统计">
+          <div><strong>{remainingCount}</strong><span>剩余人数</span></div>
+          <div><strong>{winnerCount}</strong><span>中奖人数</span></div>
+          <div><strong>{settings.participants?.length ?? Number(settings.endNumber) - Number(settings.startNumber) + 1}</strong><span>参与人数</span></div>
         </div>
 
         <form className="operator-panel__form" onSubmit={save} noValidate>
           <div className="operator-panel__range">
-            <label>Start number<input type="text" inputMode="numeric" value={startNumber} onChange={(event) => { setStartNumber(event.target.value); setLocalErrors([]); }} disabled={isDrawActive} /></label>
-            <label>End number<input type="text" inputMode="numeric" value={endNumber} onChange={(event) => { setEndNumber(event.target.value); setLocalErrors([]); }} disabled={isDrawActive} /></label>
+            <label>起始号码<input type="text" inputMode="numeric" value={startNumber} onChange={(event) => { setStartNumber(event.target.value); setLocalErrors([]); }} disabled={isDrawActive} /></label>
+            <label>结束号码<input type="text" inputMode="numeric" value={endNumber} onChange={(event) => { setEndNumber(event.target.value); setLocalErrors([]); }} disabled={isDrawActive} /></label>
           </div>
-          <p className="operator-panel__hint">The range is inclusive. Leading zeroes appear on the winner screen.</p>
-          <label className="operator-panel__csv-label">Participants CSV
-            <textarea value={csv} onChange={(event) => { setCsv(event.target.value); setLocalErrors([]); }} placeholder={'NUMBER,NAME\n001,Amina\n002,Ben'} rows={5} spellCheck={false} disabled={isDrawActive} />
+          <p className="operator-panel__hint">号码范围包含起始与结束号码；小于 1000 的号码会以三位数显示。</p>
+          <label className="operator-panel__csv-label">导入参与者名单
+            <textarea value={csv} onChange={(event) => { setCsv(event.target.value); setLocalErrors([]); }} placeholder={'号码,姓名\n001,陈美玲\n002,王俊杰'} rows={5} spellCheck={false} disabled={isDrawActive} />
           </label>
-          <p className="operator-panel__hint">Paste NUMBER,NAME rows to use a participant list instead of the range. Clear the box to use the range again.</p>
-          {importPreview && <p className="operator-panel__preview">{importPreview.participants.length} participants ready to import</p>}
+          <p className="operator-panel__hint">每行填写“号码,姓名”，即可使用参与者名单代替号码范围。清空名单即可恢复使用号码范围。</p>
+          {importPreview && <p className="operator-panel__preview">已读取 {importPreview.participants.length} 位参与者</p>}
           <label className="operator-panel__toggle">
             <input type="checkbox" checked={preventDuplicates} onChange={(event) => setPreventDuplicates(event.target.checked)} disabled={isDrawActive} />
-            <span>Prevent duplicate winners</span>
+            <span>防止重复中奖</span>
           </label>
           {errors.length > 0 && <div className="operator-panel__errors" role="alert">{errors.map((error, index) => <p key={`${index}-${error}`}>{error}</p>)}</div>}
-          <button className="operator-panel__save" type="submit" disabled={isDrawActive}>Save draw pool</button>
+          <button className="operator-panel__save" type="submit" disabled={isDrawActive}>保存抽奖名单</button>
         </form>
 
         <div className="operator-panel__maintenance">
-          <h3>Draw records</h3>
-          <button type="button" disabled={isDrawActive || winnerCount === 0} onClick={onUndo}>Undo last draw</button>
-          <button type="button" disabled={isDrawActive || winnerCount === 0} onClick={() => { if (window.confirm('Reset draw history and return all configured numbers to the pool?')) onResetHistory(); }}>Reset draw history</button>
-          <button className="operator-panel__danger" type="button" disabled={isDrawActive} onClick={() => { if (window.confirm('Reset all draw data, including settings and imported participants?')) onResetAll(); }}>Reset all draw data</button>
+          <h3>中奖记录管理</h3>
+          <button type="button" disabled={isDrawActive || winnerCount === 0} onClick={onUndo}>撤销上一轮</button>
+          <button type="button" disabled={isDrawActive || winnerCount === 0} onClick={() => { if (window.confirm('重置中奖记录，并将所有号码放回可抽取名单？')) onResetHistory(); }}>重置中奖记录</button>
+          <button className="operator-panel__danger" type="button" disabled={isDrawActive} onClick={() => { if (window.confirm('确定要重置全部抽奖数据、设置和已导入名单吗？')) onResetAll(); }}>全部重置</button>
         </div>
       </section>
     </div>
