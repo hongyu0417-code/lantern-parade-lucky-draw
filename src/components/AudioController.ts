@@ -1,30 +1,54 @@
-type Voice = { oscillator: OscillatorNode; gain: GainNode };
+type Voice = { oscillator: OscillatorNode; gain: GainNode; volume: number; ambient: boolean };
 
-/** Quiet synthesized ambience and ceremonial cues, created after a user gesture. */
+export type LanternAudioEvent =
+  | 'launch'
+  | 'running'
+  | 'space-stop'
+  | 'finalists3'
+  | 'first-loser-exit'
+  | 'finalists2'
+  | 'second-loser-exit'
+  | 'winner-enlargement'
+  | 'charge'
+  | 'burst'
+  | 'reveal';
+
+/** Quiet synthesized ambience and one-shot cues prepared after a user gesture. */
 export class AudioController {
   private context: AudioContext | null = null;
   private muted = false;
+  private drawActive = false;
+  private tension: 0 | 1 | 2 = 0;
   private active = new Set<Voice>();
   private ambient = new Set<Voice>();
+  private playedEvents = new Set<LanternAudioEvent>();
 
   initialize(): void {
-    if (this.context) return;
+    if (this.context) {
+      if (this.context.state === 'suspended') void this.context.resume().catch(() => undefined);
+      return;
+    }
     const AudioContextConstructor = window.AudioContext;
     if (!AudioContextConstructor) return;
     try {
-      this.context = new AudioContextConstructor();
+      this.context = new AudioContextConstructor({ latencyHint: 'interactive' });
       void this.context.resume().catch(() => undefined);
-      this.startAmbient();
     } catch {
       this.context = null;
     }
+  }
+
+  beginDraw(): void {
+    this.drawActive = true;
+    this.tension = 0;
+    this.playedEvents.clear();
   }
 
   setMuted(muted: boolean): void {
     if (this.muted === muted) return;
     this.muted = muted;
     if (muted) this.stopAll();
-    else this.startAmbient();
+    else if (this.drawActive) this.startRunAmbience();
   }
 
   private release(voice: Voice): void {
@@ -39,25 +63,25 @@ export class AudioController {
       try { voice.oscillator.stop(); } catch { /* The node may already have ended. */ }
       this.release(voice);
     }
+    this.ambient.clear();
   }
 
-  private voice(frequency: number, volume: number, duration?: number, startOffset = 0): void {
+  private voice(frequency: number, volume: number, duration?: number, startOffset = 0, ambient = false): void {
     if (!this.context || this.muted) return;
     try {
       const context = this.context;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
       const start = context.currentTime + startOffset;
-      const voice = { oscillator, gain };
+      const voice = { oscillator, gain, volume, ambient };
       oscillator.type = 'sine';
       oscillator.frequency.value = frequency;
-      if (duration === undefined) {
+      if (ambient) {
         gain.gain.setValueAtTime(volume, start);
-        this.ambient.add(voice);
       } else {
         gain.gain.setValueAtTime(0.0001, start);
         gain.gain.exponentialRampToValueAtTime(volume, start + 0.035);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + (duration ?? 0.4));
       }
       oscillator.connect(gain);
       gain.connect(context.destination);
@@ -65,15 +89,69 @@ export class AudioController {
       oscillator.start(start);
       if (duration !== undefined) oscillator.stop(start + duration + 0.01);
       this.active.add(voice);
+      if (ambient) this.ambient.add(voice);
     } catch {
       // Sound is optional. Browsers may suspend or deny an audio context.
     }
   }
 
-  private startAmbient(): void {
-    if (!this.context || this.muted || this.ambient.size > 0) return;
-    this.voice(110, 0.0035);
-    this.voice(164.81, 0.0025);
+  startRunAmbience(): void {
+    if (!this.drawActive || !this.context || this.muted || this.ambient.size > 0) return;
+    this.voice(110, 0.0024, undefined, 0, true);
+    this.voice(164.81, 0.0017, undefined, 0, true);
+    this.setTension(this.tension);
+  }
+
+  setTension(level: 0 | 1 | 2): void {
+    this.tension = level;
+    if (!this.context || this.muted) return;
+    const now = this.context.currentTime;
+    const multiplier = 1 + level * 0.12;
+    for (const voice of this.ambient) {
+      voice.gain.gain.setValueAtTime(voice.volume * multiplier, now);
+    }
+  }
+
+  private stopRunAmbience(): void {
+    const context = this.context;
+    if (!context) return;
+    const now = context.currentTime;
+    for (const voice of [...this.ambient]) {
+      try {
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setValueAtTime(voice.volume * (1 + this.tension * 0.12), now);
+        voice.gain.gain.linearRampToValueAtTime(0.0001, now + 0.45);
+        voice.oscillator.stop(now + 0.46);
+      } catch {
+        try { voice.oscillator.stop(); } catch { /* The voice has already ended. */ }
+        this.release(voice);
+      }
+    }
+    this.ambient.clear();
+  }
+
+  finishDraw(): void {
+    this.drawActive = false;
+    this.tension = 0;
+    this.stopRunAmbience();
+  }
+
+  onMotionEvent(event: LanternAudioEvent): void {
+    if (this.playedEvents.has(event)) return;
+    this.playedEvents.add(event);
+    switch (event) {
+      case 'launch': this.playLaunchCue(); break;
+      case 'running': this.startRunAmbience(); this.playAscentCue(); break;
+      case 'space-stop': this.playStopCue(); break;
+      case 'finalists3': this.setTension(1); break;
+      case 'first-loser-exit': this.playSeparationCue(); break;
+      case 'finalists2': this.setTension(2); break;
+      case 'second-loser-exit': this.playSeparationCue(); break;
+      case 'winner-enlargement': this.playMagnifyCue(); break;
+      case 'charge': this.playChargeCue(); break;
+      case 'burst': this.playBurstCue(); break;
+      case 'reveal': this.finishDraw(); this.playWinnerCue(); break;
+    }
   }
 
   playLaunchCue(): void {
@@ -89,8 +167,8 @@ export class AudioController {
     this.voice(659.25, 0.04, 0.52, 0.14);
   }
   playSeparationCue(): void {
-    this.voice(349.23, 0.032, 0.32);
-    this.voice(523.25, 0.032, 0.4, 0.09);
+    this.voice(349.23, 0.024, 0.32);
+    this.voice(523.25, 0.024, 0.4, 0.09);
   }
   playMagnifyCue(): void {
     this.voice(392, 0.04, 0.32);
@@ -110,9 +188,14 @@ export class AudioController {
     this.voice(659.25, 0.055, 0.8, 0.12);
     this.voice(783.99, 0.055, 0.9, 0.24);
   }
+  playStopCue(): void {
+    this.voice(246.94, 0.014, 0.28);
+    this.voice(369.99, 0.012, 0.34, 0.08);
+  }
 
   dispose(): void {
     this.stopAll();
+    this.drawActive = false;
     if (this.context) void this.context.close().catch(() => undefined);
     this.context = null;
   }

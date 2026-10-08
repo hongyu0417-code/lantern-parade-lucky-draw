@@ -5,7 +5,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 function fakeAudio() {
   const oscillators: Array<{ frequency: { value: number }; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
-  const gains: Array<{ gain: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> }; disconnect: ReturnType<typeof vi.fn> }> = [];
+  const gains: Array<{ gain: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn>; cancelScheduledValues: ReturnType<typeof vi.fn>; linearRampToValueAtTime: ReturnType<typeof vi.fn> }; disconnect: ReturnType<typeof vi.fn> }> = [];
   const close = vi.fn().mockResolvedValue(undefined);
   class FakeAudioContext {
     currentTime = 0;
@@ -16,7 +16,7 @@ function fakeAudio() {
       return oscillator;
     });
     createGain = vi.fn(() => {
-      const gain = { gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(), disconnect: vi.fn() };
+      const gain = { gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), cancelScheduledValues: vi.fn(), linearRampToValueAtTime: vi.fn() }, connect: vi.fn(), disconnect: vi.fn() };
       gains.push(gain);
       return gain;
     });
@@ -36,11 +36,14 @@ describe('AudioController', () => {
     expect(() => audio.dispose()).not.toThrow();
   });
 
-  it('starts quiet ambient audio on initialization and plays distinct phase cues', () => {
+  it('unlocks silently, starts ambience only during a draw, and plays distinct phase cues', () => {
     const { oscillators, gains } = fakeAudio();
     const audio = new AudioController();
     expect(oscillators).toHaveLength(0);
     audio.initialize();
+    expect(oscillators).toHaveLength(0);
+    audio.beginDraw();
+    audio.startRunAmbience();
     expect(oscillators).toHaveLength(2);
     expect(gains[0].gain.setValueAtTime).toHaveBeenCalledWith(expect.any(Number), expect.any(Number));
     audio.playLaunchCue();
@@ -58,6 +61,8 @@ describe('AudioController', () => {
     const { oscillators, gains } = fakeAudio();
     const audio = new AudioController();
     audio.initialize();
+    audio.beginDraw();
+    audio.startRunAmbience();
     audio.playWinnerCue();
     expect(oscillators).toHaveLength(5);
     audio.setMuted(true);
@@ -77,11 +82,43 @@ describe('AudioController', () => {
     audio.setMuted(true);
     audio.initialize();
     expect(oscillators).toHaveLength(0);
+    audio.beginDraw();
     audio.setMuted(false);
     expect(oscillators).toHaveLength(2);
     audio.dispose();
     expect(oscillators.every(({ stop, disconnect }) => stop.mock.calls.length > 0 && disconnect.mock.calls.length > 0)).toBe(true);
     expect(gains.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true);
     expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('plays each motion event once per draw and resets guards for the next draw', () => {
+    const { oscillators } = fakeAudio();
+    const audio = new AudioController();
+    audio.initialize();
+    audio.beginDraw();
+    audio.onMotionEvent('burst');
+    const afterFirstBurst = oscillators.length;
+    audio.onMotionEvent('burst');
+    expect(oscillators).toHaveLength(afterFirstBurst);
+
+    audio.beginDraw();
+    audio.onMotionEvent('burst');
+    expect(oscillators).toHaveLength(afterFirstBurst + 3);
+    audio.dispose();
+  });
+
+  it('starts only one run ambience and stops it when the draw finishes', () => {
+    const { oscillators } = fakeAudio();
+    const audio = new AudioController();
+    audio.initialize();
+    audio.beginDraw();
+    audio.startRunAmbience();
+    const afterStart = oscillators.length;
+    audio.startRunAmbience();
+    expect(oscillators).toHaveLength(afterStart);
+
+    audio.finishDraw();
+    expect(oscillators.slice(-2).every(({ stop }) => stop.mock.calls.length > 0)).toBe(true);
+    audio.dispose();
   });
 });

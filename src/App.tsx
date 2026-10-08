@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { AudioController } from './components/AudioController';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { AudioController, type LanternAudioEvent } from './components/AudioController';
 import { LanternStage } from './components/LanternStage';
 import { OperatorPanel } from './components/OperatorPanel';
 import { WinnerHistory } from './components/WinnerHistory';
@@ -38,6 +38,11 @@ export default function App() {
   if (!audio.current) audio.current = new AudioController();
   useDrawTimeline(state.phase, dispatch);
 
+  const advancePhase = useCallback(() => dispatch({ type: 'ADVANCE_PHASE' }), []);
+  const handleMotionEvent = useCallback((event: LanternAudioEvent) => {
+    audio.current?.onMotionEvent(event);
+  }, []);
+
   useEffect(() => {
     const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     if (!query) return;
@@ -54,20 +59,19 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', initialize); window.removeEventListener('keydown', initialize); controller?.dispose(); };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     audio.current?.setMuted(!state.record.settings.soundEnabled);
     if (previousPhase.current !== state.phase) {
-      if (state.phase === 'preparing') audio.current?.playLaunchCue();
-      if (state.phase === 'running') audio.current?.playAscentCue();
-      if (state.phase === 'eliminating' || state.phase === 'finalists3') audio.current?.playFinalistsCue();
-      if (state.phase === 'eliminatingToTwo' || state.phase === 'finalists2' || state.phase === 'eliminatingToOne') audio.current?.playSeparationCue();
-      if (state.phase === 'magnifying') audio.current?.playMagnifyCue();
-      if (state.phase === 'charging') audio.current?.playChargeCue();
-      if (state.phase === 'burst') audio.current?.playBurstCue();
-      if (state.phase === 'winner' && previousPhase.current !== 'idle') audio.current?.playWinnerCue();
+      if (state.phase === 'running') handleMotionEvent('running');
+      if (state.phase === 'finalists3') handleMotionEvent('finalists3');
+      if (state.phase === 'finalists2') handleMotionEvent('finalists2');
+      if (state.phase === 'magnifying') handleMotionEvent('winner-enlargement');
+      if (state.phase === 'charging') handleMotionEvent('charge');
+      if (state.phase === 'burst') handleMotionEvent('burst');
+      if (state.phase === 'revealing') handleMotionEvent('reveal');
     }
     previousPhase.current = state.phase;
-  }, [state.phase, state.record.settings.soundEnabled]);
+  }, [handleMotionEvent, state.phase, state.record.settings.soundEnabled]);
 
   const persist = useCallback((record: PersistedDrawRecord, target: 'stage' | 'operator' = 'stage'): boolean => {
     try {
@@ -91,8 +95,10 @@ export default function App() {
     drawLocked.current = true;
     stopRequested.current = false;
     audio.current?.initialize();
+    audio.current?.beginDraw();
+    handleMotionEvent('launch');
     dispatch({ type: 'START_DRAW' });
-  }, [state.overlay, state.phase]);
+  }, [handleMotionEvent, state.overlay, state.phase]);
 
   const stopDraw = useCallback(() => {
     if (state.phase !== 'running' || stopRequested.current || !drawLocked.current) return;
@@ -105,12 +111,13 @@ export default function App() {
       if (!next.activeWinner) throw new Error('The draw did not reserve a winner.');
       const animationFinalists = createFinalistLanterns(eligibleBeforeDraw, next.activeWinner, randomIndex);
       if (!persist(next)) { stopRequested.current = false; return; }
+      handleMotionEvent('space-stop');
       dispatch({ type: 'BEGIN_ELIMINATION', record: next, animationFinalists });
     } catch {
       stopRequested.current = false;
       setNotice('无法完成抽奖，请检查当前参与名单后重试。');
     }
-  }, [persist, state.phase]);
+  }, [handleMotionEvent, persist, state.phase]);
 
   const nextDraw = useCallback(() => {
     if (state.phase !== 'winner') return;
@@ -196,10 +203,10 @@ export default function App() {
       phase={state.phase} activeWinner={state.record.activeWinner}
       animationPool={state.animationPool} animationFinalists={state.animationFinalists}
       stopRequested={stopRequested}
+      onAdvancePhase={advancePhase} onMotionEvent={handleMotionEvent}
       onDraw={startDraw} onNext={nextDraw} onHistory={showHistory}
       reducedMotion={reducedMotion} emptyPool={state.record.availableNumbers.length === 0}
-      notice={notice} isFullscreen={isFullscreen} soundEnabled={state.record.settings.soundEnabled}
-      onSettings={() => toggleOverlay('admin')} onSound={toggleSound} onFullscreen={requestFullscreen}
+      notice={notice}
     />
     {!isFullscreen && state.overlay === 'admin' && <OperatorPanel
       key={operatorPanelRevision}

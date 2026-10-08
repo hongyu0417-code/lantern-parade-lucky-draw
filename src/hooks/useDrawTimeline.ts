@@ -3,13 +3,9 @@ import type { DrawAction } from '../draw/reducer';
 import type { DrawPhase } from '../draw/types';
 
 const PHASE_DELAYS: Partial<Record<DrawPhase, number>> = {
-  preparing: 320,
-  eliminating: 2500,
-  finalists3: 1500,
-  eliminatingToTwo: 800,
-  finalists2: 1200,
-  eliminatingToOne: 800,
-  finalist1: 650,
+  finalists3: 1_700,
+  finalists2: 1_500,
+  finalist1: 1_000,
   magnifying: 1200,
   charging: 550,
   burst: 200,

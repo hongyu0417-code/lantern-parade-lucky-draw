@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import type { LanternAudioEvent } from './AudioController';
 import type { DrawPhase, Participant, WinnerRecord } from '../draw/types';
 import { FirefliesCanvas } from './FirefliesCanvas';
 import { FlyingNumberLanterns } from './FlyingNumberLanterns';
@@ -13,21 +14,16 @@ type LanternStageProps = {
   animationPool: Participant[];
   animationFinalists: Participant[];
   stopRequested: { current: boolean };
+  onAdvancePhase: () => void;
+  onMotionEvent: (event: LanternAudioEvent) => void;
   onDraw: () => void;
   onNext: () => void;
   onHistory: () => void;
   reducedMotion: boolean;
   emptyPool: boolean;
   notice: string | null;
-  isFullscreen: boolean;
-  soundEnabled: boolean;
-  onSettings: () => void;
-  onSound: () => void;
-  onFullscreen: () => void;
 };
 
-const toolbarStyle: CSSProperties = { display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.7rem', padding: '0 1.5rem 1.5rem' };
-const toolButtonStyle: CSSProperties = { color: '#fff0ca', border: '1px solid rgba(255,228,166,.6)', background: 'rgba(3,18,38,.78)', borderRadius: 3, padding: '0.6rem 1rem', cursor: 'pointer', fontSize: '.82rem', letterSpacing: '.08em' };
 const noticeStyle: CSSProperties = { maxWidth: 680, margin: '1.5rem auto 0', padding: '.8rem 1.2rem', color: '#fff0ca', background: 'rgba(4,18,37,.85)', border: '1px solid rgba(255,228,166,.55)', lineHeight: 1.5 };
 
 const phaseMessages: Partial<Record<DrawPhase, string>> = {
@@ -45,14 +41,13 @@ const phaseMessages: Partial<Record<DrawPhase, string>> = {
   revealing: '恭喜，幸运号码已经揭晓',
 };
 
-export function LanternStage({ phase, activeWinner, animationPool, animationFinalists, stopRequested, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice, isFullscreen, soundEnabled, onSettings, onSound, onFullscreen }: LanternStageProps) {
+export function LanternStage({ phase, activeWinner, animationPool, animationFinalists, stopRequested, onAdvancePhase, onMotionEvent, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice }: LanternStageProps) {
   const isIdle = phase === 'idle';
   const isPreparing = phase === 'preparing';
   const isWinner = phase === 'winner';
   const inSequence = !isIdle && !isWinner;
   const showIntro = isIdle || isPreparing;
   const mastheadClassName = `stage-masthead${inSequence ? ` stage-masthead--${isPreparing ? 'fading' : 'hidden'}` : ''}`;
-  const toolbarClassName = `stage-toolbar${isPreparing ? ' stage-toolbar--fading' : ''}`;
   return (
     <main className={`lantern-stage lantern-stage--${phase}${reducedMotion ? ' lantern-stage--reduced-motion' : ''}`} data-screen={phase}>
       <div className="lantern-stage__art" aria-hidden="true" />
@@ -66,8 +61,10 @@ export function LanternStage({ phase, activeWinner, animationPool, animationFina
         winner={activeWinner}
         reducedMotion={reducedMotion}
         stopRequested={stopRequested}
+        onAdvancePhase={onAdvancePhase}
+        onMotionEvent={onMotionEvent}
       />}
-      <FirefliesCanvas intensity={inSequence ? 0.16 : isWinner ? 0.3 : 0.22} paused={reducedMotion} />
+      <FirefliesCanvas intensity={inSequence ? 0.16 : isWinner ? 0.3 : 0.22} paused={reducedMotion || inSequence} />
 
       <header className={mastheadClassName}>
         <div className="stage-masthead__rule" aria-hidden="true" />
@@ -78,7 +75,7 @@ export function LanternStage({ phase, activeWinner, animationPool, animationFina
       <div className="lantern-stage__content">
         {showIntro && (
           <section className={`stage-intro${isPreparing ? ' stage-intro--fading' : ''}`} aria-labelledby="lucky-draw-title" aria-hidden={isPreparing}>
-            <p className="stage-intro__kicker">月色如画 · 灯火相逢</p>
+            <p className="stage-intro__kicker">第二十六届马大灯笼节 · 灯笼游行</p>
             <h1 id="lucky-draw-title">幸运抽奖</h1>
             <p className="stage-intro__line">寻找属于你的幸运灯笼</p>
             <button className="stage-button stage-button--primary" type="button" onClick={onDraw} disabled={emptyPool || isPreparing}>
@@ -95,12 +92,6 @@ export function LanternStage({ phase, activeWinner, animationPool, animationFina
         {isWinner && activeWinner && <WinnerReveal winner={activeWinner} onNext={onNext} onHistory={onHistory} />}
         {notice && <p role="alert" style={noticeStyle}>{notice}</p>}
       </div>
-      {!isFullscreen && (!inSequence || isPreparing) && <nav className={toolbarClassName} aria-label="管理选项" aria-hidden={isPreparing} style={toolbarStyle}>
-        <button type="button" style={toolButtonStyle} onClick={onSettings} aria-label="抽奖设置" disabled={isPreparing}>设置 · A</button>
-        <button type="button" style={toolButtonStyle} onClick={onHistory} aria-label="中奖记录" disabled={isPreparing}>中奖记录 · H</button>
-        <button type="button" style={toolButtonStyle} onClick={onSound} aria-label={soundEnabled ? '关闭音效' : '开启音效'} disabled={isPreparing}>{soundEnabled ? '音效开' : '音效关'} · M</button>
-        <button type="button" style={toolButtonStyle} onClick={onFullscreen} aria-label="进入全屏" disabled={isPreparing}>全屏 · F</button>
-      </nav>}
     </main>
   );
 }

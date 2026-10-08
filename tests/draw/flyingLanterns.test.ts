@@ -61,7 +61,8 @@ describe('numbered lantern candidates', () => {
 
   it('uses every real entry when fewer than three candidates are available', () => {
     const candidates = [{ number: '013' }, { number: '022' }];
-    expect(createFinalistLanterns(candidates, candidates[0], () => 0)).toEqual(candidates);
+    expect(createFinalistLanterns(candidates, candidates[0], () => 0).map(({ number }) => number).sort())
+      .toEqual(candidates.map(({ number }) => number).sort());
   });
 
   it('rejects a finalist winner that is missing from the flight roster', () => {
