@@ -10,8 +10,9 @@ import '../styles/stage.css';
 type LanternStageProps = {
   phase: DrawPhase;
   activeWinner: WinnerRecord | null;
-  animationCandidates: Participant[];
+  animationPool: Participant[];
   animationFinalists: Participant[];
+  stopRequested: { current: boolean };
   onDraw: () => void;
   onNext: () => void;
   onHistory: () => void;
@@ -31,18 +32,20 @@ const noticeStyle: CSSProperties = { maxWidth: 680, margin: '1.5rem auto 0', pad
 
 const phaseMessages: Partial<Record<DrawPhase, string>> = {
   preparing: '幸运抽奖即将开始',
-  awakening: '灯笼正从湖畔升起',
-  ascending: '每个号码都在夜空中前行',
-  narrowing: '夜空渐渐安静下来',
-  finalists: '最后几盏灯缓缓升起',
-  separating: '幸运灯笼即将浮现',
+  running: '每个号码都在夜空中前行',
+  eliminating: '夜空渐渐安静下来',
+  finalists3: '最后几盏灯缓缓升起',
+  eliminatingToTwo: '灯笼继续缓缓升起',
+  finalists2: '夜色中还剩两盏灯',
+  eliminatingToOne: '灯笼继续缓缓升起',
+  finalist1: '最后一盏灯缓缓升起',
   magnifying: '幸运号码即将揭晓',
   charging: '光芒正在汇聚',
   burst: '中奖号码即将揭晓',
   revealing: '恭喜，幸运号码已经揭晓',
 };
 
-export function LanternStage({ phase, activeWinner, animationCandidates, animationFinalists, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice, isFullscreen, soundEnabled, onSettings, onSound, onFullscreen }: LanternStageProps) {
+export function LanternStage({ phase, activeWinner, animationPool, animationFinalists, stopRequested, onDraw, onNext, onHistory, reducedMotion, emptyPool, notice, isFullscreen, soundEnabled, onSettings, onSound, onFullscreen }: LanternStageProps) {
   const isIdle = phase === 'idle';
   const isPreparing = phase === 'preparing';
   const isWinner = phase === 'winner';
@@ -55,8 +58,15 @@ export function LanternStage({ phase, activeWinner, animationCandidates, animati
       <div className="lantern-stage__art" aria-hidden="true" />
       <div className="lantern-stage__nightfall" aria-hidden="true" />
       <div className="lantern-stage__waterlight" aria-hidden="true" />
-      {(isIdle || isPreparing || isWinner || !activeWinner) && <LanternField phase={phase} />}
-      {inSequence && !isPreparing && activeWinner && <FlyingNumberLanterns phase={phase} candidates={animationCandidates} finalists={animationFinalists} winner={activeWinner} />}
+      {(isIdle || isWinner) && <LanternField phase={phase} />}
+      {inSequence && animationPool.length > 0 && <FlyingNumberLanterns
+        phase={phase}
+        eligible={animationPool}
+        finalists={animationFinalists}
+        winner={activeWinner}
+        reducedMotion={reducedMotion}
+        stopRequested={stopRequested}
+      />}
       <FirefliesCanvas intensity={inSequence ? 0.16 : isWinner ? 0.3 : 0.22} paused={reducedMotion} />
 
       <header className={mastheadClassName}>

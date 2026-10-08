@@ -22,6 +22,32 @@ const FINALIST_ARRIVAL_MS = 8_500;
 const MAX_STAGGER_MS = 1_500;
 const DEPTHS: LanternDepth[] = ['background', 'midground', 'foreground'];
 
+/** Creates one independently timed upward pass for the continuous running field. */
+export function createLanternFlightPlan(
+  number: string,
+  randomIndex: (exclusiveMax: number) => number,
+  launchDelayMs?: number,
+): LanternFlightPlan {
+  const depth = DEPTHS[checkedIndex(randomIndex, DEPTHS.length)];
+  const prevailingWindVw = 1 + checkedIndex(randomIndex, 5) * 0.4;
+  return {
+    number,
+    launchDelayMs: launchDelayMs ?? checkedIndex(randomIndex, 1_001),
+    exitAtMs: null,
+    flightDurationMs: 4_500 + checkedIndex(randomIndex, 3_001),
+    depth,
+    depthScale: depthScale(depth, randomIndex),
+    depthOpacity: depthOpacity(depth, randomIndex),
+    prevailingWindVw,
+    launchLeftPercent: 8 + checkedIndex(randomIndex, 85),
+    launchTopVh: 105 + checkedIndex(randomIndex, 21),
+    curveOneVw: prevailingWindVw + (checkedIndex(randomIndex, 13) - 6) * 0.5,
+    curveTwoVw: prevailingWindVw + (checkedIndex(randomIndex, 13) - 6) * 0.45,
+    finalistShiftVw: 0,
+    finalistRole: null,
+  };
+}
+
 function checkedIndex(randomIndex: (exclusiveMax: number) => number, exclusiveMax: number): number {
   const index = randomIndex(exclusiveMax);
   if (!Number.isInteger(index) || index < 0 || index >= exclusiveMax) {
