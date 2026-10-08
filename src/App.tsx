@@ -3,7 +3,7 @@ import { AudioController } from './components/AudioController';
 import { LanternStage } from './components/LanternStage';
 import { OperatorPanel } from './components/OperatorPanel';
 import { WinnerHistory } from './components/WinnerHistory';
-import { createCandidateLanterns, createFinalistLanterns } from './draw/flyingLanterns';
+import { createFinalistLanterns } from './draw/flyingLanterns';
 import { createSecureRandomIndex } from './draw/random';
 import { createDrawState, drawReducer, type DrawOverlay } from './draw/reducer';
 import { createDefaultRecord, readDrawRecord, reserveDraw, resetAllDrawData, resetDrawHistory, undoLastDraw, updateDrawSettings, writeDrawRecord } from './draw/persistence';
@@ -29,13 +29,14 @@ export default function App() {
   const [operatorPanelRevision, setOperatorPanelRevision] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
   const drawLocked = useRef(false);
+  const stopRequested = useRef(false);
   const recordRef = useRef(state.record);
   const audio = useRef<AudioController | null>(null);
   const previousPhase = useRef(state.phase);
   const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
 
   if (!audio.current) audio.current = new AudioController();
-  useDrawTimeline(state.phase, dispatch, reducedMotion);
+  useDrawTimeline(state.phase, dispatch);
 
   useEffect(() => {
     const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -56,10 +57,10 @@ export default function App() {
   useEffect(() => {
     audio.current?.setMuted(!state.record.settings.soundEnabled);
     if (previousPhase.current !== state.phase) {
-      if (state.phase === 'awakening') audio.current?.playLaunchCue();
-      if (state.phase === 'ascending') audio.current?.playAscentCue();
-      if (state.phase === 'finalists') audio.current?.playFinalistsCue();
-      if (state.phase === 'separating') audio.current?.playSeparationCue();
+      if (state.phase === 'preparing') audio.current?.playLaunchCue();
+      if (state.phase === 'running') audio.current?.playAscentCue();
+      if (state.phase === 'eliminating' || state.phase === 'finalists3') audio.current?.playFinalistsCue();
+      if (state.phase === 'eliminatingToTwo' || state.phase === 'finalists2' || state.phase === 'eliminatingToOne') audio.current?.playSeparationCue();
       if (state.phase === 'magnifying') audio.current?.playMagnifyCue();
       if (state.phase === 'charging') audio.current?.playChargeCue();
       if (state.phase === 'burst') audio.current?.playBurstCue();
@@ -88,28 +89,35 @@ export default function App() {
       return;
     }
     drawLocked.current = true;
-    const controller = audio.current;
-    controller?.initialize();
+    stopRequested.current = false;
+    audio.current?.initialize();
+    dispatch({ type: 'START_DRAW' });
+  }, [state.overlay, state.phase]);
+
+  const stopDraw = useCallback(() => {
+    if (state.phase !== 'running' || stopRequested.current || !drawLocked.current) return;
+    stopRequested.current = true;
     try {
       const randomIndex = createSecureRandomIndex();
       const eligibleBeforeDraw = recordRef.current.availableNumbers;
+      if (eligibleBeforeDraw.length === 0) throw new Error('The eligible pool is empty.');
       const next = reserveDraw(recordRef.current, randomIndex, new Date().toISOString());
       if (!next.activeWinner) throw new Error('The draw did not reserve a winner.');
-      const animationCandidates = createCandidateLanterns(eligibleBeforeDraw, next.activeWinner, randomIndex);
-      const animationFinalists = createFinalistLanterns(animationCandidates, next.activeWinner, randomIndex);
-      if (!persist(next)) { drawLocked.current = false; return; }
-      dispatch({ type: 'RESERVE_DRAW', record: next, animationCandidates, animationFinalists });
+      const animationFinalists = createFinalistLanterns(eligibleBeforeDraw, next.activeWinner, randomIndex);
+      if (!persist(next)) { stopRequested.current = false; return; }
+      dispatch({ type: 'BEGIN_ELIMINATION', record: next, animationFinalists });
     } catch {
-      drawLocked.current = false;
-      setNotice('无法开始抽奖，请检查当前参与名单。');
+      stopRequested.current = false;
+      setNotice('无法完成抽奖，请检查当前参与名单后重试。');
     }
-  }, [persist, state.overlay, state.phase]);
+  }, [persist, state.phase]);
 
   const nextDraw = useCallback(() => {
     if (state.phase !== 'winner') return;
     const next = { ...recordRef.current, activeWinner: null };
     if (!persist(next)) return;
     drawLocked.current = false;
+    stopRequested.current = false;
     dispatch({ type: 'RETURN_TO_IDLE' });
   }, [persist, state.phase]);
 
@@ -143,12 +151,19 @@ export default function App() {
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
-      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || isEditable(event.target)) return;
       const key = event.key.toLowerCase();
       if (key === ' ' || key === 'spacebar') {
-        if (event.target instanceof HTMLElement && event.target.closest('button, a, summary, [role="button"], [role="link"]')) return;
-        if (state.phase === 'idle' && !state.overlay) { event.preventDefault(); startDraw(); }
-      } else if (key === 'n') {
+        if (isEditable(event.target) || event.altKey || event.ctrlKey || event.metaKey || state.phase !== 'running') return;
+        const isInteractiveTarget = event.target instanceof HTMLElement
+          && event.target.closest('button, a, summary, [role="button"], [role="link"]');
+        if (isInteractiveTarget) return;
+        event.preventDefault();
+        if (event.repeat) return;
+        stopDraw();
+        return;
+      }
+      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || isEditable(event.target)) return;
+      if (key === 'n') {
         if (state.phase === 'winner' && !state.overlay) { event.preventDefault(); nextDraw(); }
       } else if (key === 'a' || key === 'h') {
         event.preventDefault(); toggleOverlay(key === 'a' ? 'admin' : 'history');
@@ -160,7 +175,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [nextDraw, requestFullscreen, startDraw, state.overlay, state.phase, toggleOverlay, toggleSound]);
+  }, [nextDraw, requestFullscreen, state.overlay, state.phase, stopDraw, toggleOverlay, toggleSound]);
 
   const saveSettings = (settings: DrawSettings) => {
     try { updateRecord(updateDrawSettings(recordRef.current, settings)); }
@@ -179,7 +194,8 @@ export default function App() {
   return <>
     <LanternStage
       phase={state.phase} activeWinner={state.record.activeWinner}
-      animationCandidates={state.animationCandidates} animationFinalists={state.animationFinalists}
+      animationPool={state.animationPool} animationFinalists={state.animationFinalists}
+      stopRequested={stopRequested}
       onDraw={startDraw} onNext={nextDraw} onHistory={showHistory}
       reducedMotion={reducedMotion} emptyPool={state.record.availableNumbers.length === 0}
       notice={notice} isFullscreen={isFullscreen} soundEnabled={state.record.settings.soundEnabled}

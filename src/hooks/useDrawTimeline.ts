@@ -4,13 +4,14 @@ import type { DrawPhase } from '../draw/types';
 
 const PHASE_DELAYS: Partial<Record<DrawPhase, number>> = {
   preparing: 320,
-  awakening: 2500,
-  ascending: 3000,
-  narrowing: 1500,
-  finalists: 1500,
-  separating: 1200,
-  magnifying: 1000,
-  charging: 500,
+  eliminating: 2500,
+  finalists3: 1500,
+  eliminatingToTwo: 800,
+  finalists2: 1200,
+  eliminatingToOne: 800,
+  finalist1: 650,
+  magnifying: 1200,
+  charging: 550,
   burst: 200,
   revealing: 600,
 };
@@ -18,33 +19,14 @@ const PHASE_DELAYS: Partial<Record<DrawPhase, number>> = {
 export function useDrawTimeline(
   phase: DrawPhase,
   dispatch: React.Dispatch<DrawAction>,
-  reducedMotion: boolean,
 ): void {
   useEffect(() => {
-    if (phase === 'idle' || phase === 'winner') return;
-    if (reducedMotion) {
-      dispatch({ type: 'SKIP_TO_WINNER' });
-      return;
-    }
-
-    const nextPhase = ({
-      preparing: 'awakening',
-      awakening: 'ascending',
-      ascending: 'narrowing',
-      narrowing: 'finalists',
-      finalists: 'separating',
-      separating: 'magnifying',
-      magnifying: 'charging',
-      charging: 'burst',
-      burst: 'revealing',
-      revealing: 'winner',
-    } as const)[phase];
     const delay = PHASE_DELAYS[phase];
-    if (!nextPhase || delay === undefined) return;
+    if (delay === undefined) return;
 
     const timeout = window.setTimeout(() => {
-      dispatch({ type: 'ADVANCE_PHASE', phase: nextPhase });
+      dispatch({ type: 'ADVANCE_PHASE' });
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [dispatch, phase, reducedMotion]);
+  }, [dispatch, phase]);
 }

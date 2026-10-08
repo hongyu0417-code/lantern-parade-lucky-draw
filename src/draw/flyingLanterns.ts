@@ -20,6 +20,35 @@ function shuffle<T>(items: T[], randomIndex: (exclusiveMax: number) => number): 
   return items;
 }
 
+function uniqueParticipants(participants: Participant[]): Participant[] {
+  return [...new Map(participants.map((participant) => [participant.number, participant])).values()];
+}
+
+/** Creates the first bounded field of distinct moving lanterns. */
+export function createInitialLanternRoster(
+  eligible: Participant[],
+  randomIndex: (exclusiveMax: number) => number,
+  targetCount = DEFAULT_FLYING_LANTERNS,
+): Participant[] {
+  const unique = uniqueParticipants(eligible);
+  const requested = Number.isFinite(targetCount) ? Math.floor(targetCount) : DEFAULT_FLYING_LANTERNS;
+  const boundedTarget = Math.min(MAX_FLYING_LANTERNS, Math.max(MIN_FLYING_LANTERNS, requested));
+  return shuffle([...unique], randomIndex).slice(0, Math.min(unique.length, boundedTarget));
+}
+
+/** Chooses the next stream label without duplicating a currently visible participant when possible. */
+export function chooseNextLanternParticipant(
+  eligible: Participant[],
+  activeNumbers: Set<string>,
+  randomIndex: (exclusiveMax: number) => number,
+): Participant | null {
+  const unique = uniqueParticipants(eligible);
+  if (unique.length === 0) return null;
+  const available = unique.filter(({ number }) => !activeNumbers.has(number));
+  const choices = available.length > 0 ? available : unique;
+  return choices[checkedIndex(randomIndex, choices.length)];
+}
+
 /** Selects a temporary, visible roster without changing the already-reserved winner. */
 export function createCandidateLanterns(
   eligible: Participant[],
@@ -50,7 +79,7 @@ export function createFinalistLanterns(
   const unique = [...new Map(candidates.map((participant) => [participant.number, participant])).values()];
   const winningEntry = unique.find(({ number }) => number === winner.number);
   if (!winningEntry) throw new Error('The saved winner must be in the finalist roster.');
-  if (unique.length <= 3) return unique;
+  if (unique.length <= 3) return shuffle(unique, randomIndex);
 
   const otherFinalists = shuffle(unique.filter(({ number }) => number !== winner.number), randomIndex).slice(0, 2);
   const winnerSlot = checkedIndex(randomIndex, otherFinalists.length + 1);
