@@ -5,9 +5,7 @@ export type LanternAudioEvent =
   | 'running'
   | 'space-stop'
   | 'finalists3'
-  | 'first-loser-exit'
-  | 'finalists2'
-  | 'second-loser-exit'
+  | 'losers-exit'
   | 'winner-enlargement'
   | 'charge'
   | 'burst'
@@ -144,9 +142,7 @@ export class AudioController {
       case 'running': this.startRunAmbience(); this.playAscentCue(); break;
       case 'space-stop': this.playStopCue(); break;
       case 'finalists3': this.setTension(1); break;
-      case 'first-loser-exit': this.playSeparationCue(); break;
-      case 'finalists2': this.setTension(2); break;
-      case 'second-loser-exit': this.playSeparationCue(); break;
+      case 'losers-exit': this.setTension(2); this.playExitWhoosh(); break;
       case 'winner-enlargement': this.playMagnifyCue(); break;
       case 'charge': this.playChargeCue(); break;
       case 'burst': this.playBurstCue(); break;
@@ -169,6 +165,30 @@ export class AudioController {
   playSeparationCue(): void {
     this.voice(349.23, 0.024, 0.32);
     this.voice(523.25, 0.024, 0.4, 0.09);
+  }
+  playExitWhoosh(): void {
+    if (!this.context || this.muted) return;
+    try {
+      const context = this.context;
+      const start = context.currentTime;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const voice = { oscillator, gain, volume: 0.026, ambient: false };
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(480, start);
+      oscillator.frequency.exponentialRampToValueAtTime(145, start + 0.34);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.026, start + 0.045);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.38);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.onended = () => this.release(voice);
+      oscillator.start(start);
+      oscillator.stop(start + 0.39);
+      this.active.add(voice);
+    } catch {
+      // Sound is optional. Browsers may suspend or deny an audio context.
+    }
   }
   playMagnifyCue(): void {
     this.voice(392, 0.04, 0.32);

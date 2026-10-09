@@ -79,7 +79,7 @@ describe('LanternStage', () => {
 
     expect(screen.queryByRole('button', { name: '开始抽奖' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '抽奖设置' })).not.toBeInTheDocument();
-    expect(container.querySelectorAll('.flying-number-lantern')).toHaveLength(28);
+    expect(container.querySelectorAll('.flying-number-lantern')).toHaveLength(36);
     expect(container.querySelector('.lantern-stage__content')).toBeInTheDocument();
   });
 

@@ -4,14 +4,14 @@ import { AudioController } from './AudioController';
 afterEach(() => vi.unstubAllGlobals());
 
 function fakeAudio() {
-  const oscillators: Array<{ frequency: { value: number }; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
+  const oscillators: Array<{ frequency: { value: number; setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn> }; start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn> }> = [];
   const gains: Array<{ gain: { setValueAtTime: ReturnType<typeof vi.fn>; exponentialRampToValueAtTime: ReturnType<typeof vi.fn>; cancelScheduledValues: ReturnType<typeof vi.fn>; linearRampToValueAtTime: ReturnType<typeof vi.fn> }; disconnect: ReturnType<typeof vi.fn> }> = [];
   const close = vi.fn().mockResolvedValue(undefined);
   class FakeAudioContext {
     currentTime = 0;
     destination = {};
     createOscillator = vi.fn(() => {
-      const oscillator = { type: 'sine', frequency: { value: 0 }, connect: vi.fn(), start: vi.fn(), stop: vi.fn(), disconnect: vi.fn() };
+      const oscillator = { type: 'sine', frequency: { value: 0, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, connect: vi.fn(), start: vi.fn(), stop: vi.fn(), disconnect: vi.fn() };
       oscillators.push(oscillator);
       return oscillator;
     });
@@ -104,6 +104,21 @@ describe('AudioController', () => {
     audio.beginDraw();
     audio.onMotionEvent('burst');
     expect(oscillators).toHaveLength(afterFirstBurst + 3);
+    audio.dispose();
+  });
+
+  it('plays one combined cue when the coordinated finalist exits begin', () => {
+    const { oscillators } = fakeAudio();
+    const audio = new AudioController();
+    audio.initialize();
+    audio.beginDraw();
+    audio.onMotionEvent('losers-exit');
+    const afterFirstExitCue = oscillators.length;
+    audio.onMotionEvent('losers-exit');
+
+    expect(afterFirstExitCue).toBe(1);
+    expect(oscillators).toHaveLength(afterFirstExitCue);
+    expect(oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(145, 0.34);
     audio.dispose();
   });
 

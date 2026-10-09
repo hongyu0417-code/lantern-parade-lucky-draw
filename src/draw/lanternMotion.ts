@@ -1,9 +1,11 @@
-export const MOTION_POOL_CAPACITY = 28;
-export const MIN_ACTIVE_LANTERNS = 18;
-export const MAX_ACTIVE_LANTERNS = 28;
+export const MOTION_POOL_CAPACITY = 36;
+export const MIN_ACTIVE_LANTERNS = 24;
+export const MAX_ACTIVE_LANTERNS = 36;
 export const MIN_SPAWN_INTERVAL_MS = 120;
 export const MAX_SPAWN_INTERVAL_MS = 450;
 export const MAX_FRAME_DELTA_SECONDS = 0.033;
+export const LANTERN_SPEED_MULTIPLIER = 1.2;
+export const LOSER_EXIT_OFFSET_MS = 300;
 
 export type LanternMotion = {
   x: number;
@@ -14,6 +16,7 @@ export type LanternMotion = {
   velocityY: number;
   targetVelocityY: number;
   windSpeed: number;
+  windVariation?: number;
   swayAmplitude: number;
   swayFrequency: number;
   swayPhase: number;
@@ -44,7 +47,7 @@ export function clampFrameDelta(deltaSeconds: number): number {
 export function getTargetLanternCount(width: number, height: number): number {
   const area = Math.max(1, width) * Math.max(1, height);
   const referenceArea = 1280 * 720;
-  return clamp(Math.round(22 * Math.sqrt(area / referenceArea)), MIN_ACTIVE_LANTERNS, MAX_ACTIVE_LANTERNS);
+  return clamp(Math.round(21.3 * Math.sqrt(area / referenceArea)), MIN_ACTIVE_LANTERNS, MAX_ACTIVE_LANTERNS);
 }
 
 export function getNextSpawnIntervalMs(
@@ -52,9 +55,9 @@ export function getNextSpawnIntervalMs(
   targetCount: number,
   randomIndex: (exclusiveMax: number) => number,
 ): number {
-  const jitter = checkedRandomIndex(randomIndex, 121) - 60;
+  const jitter = checkedRandomIndex(randomIndex, 61) - 30;
   const deficit = targetCount - activeCount;
-  const base = 235 - deficit * 12;
+  const base = 130 - deficit * 10;
   return clamp(Math.round(base + jitter), MIN_SPAWN_INTERVAL_MS, MAX_SPAWN_INTERVAL_MS);
 }
 
@@ -63,6 +66,7 @@ export function advanceLanternMotion(
   motion: LanternMotion,
   deltaSeconds: number,
   elapsedSeconds: number,
+  sharedWindSpeed = 0,
 ): LanternMotion {
   const delta = clampFrameDelta(deltaSeconds);
   if (delta === 0) return motion;
@@ -72,7 +76,7 @@ export function advanceLanternMotion(
   const positionBlend = 1 - Math.exp(-1.65 * delta);
   const previousVelocityY = motion.velocityY;
   motion.velocityY += (motion.targetVelocityY - motion.velocityY) * velocityBlend;
-  motion.windDistance += motion.windSpeed * delta;
+  motion.windDistance += (motion.windSpeed + sharedWindSpeed * (motion.windVariation ?? 1)) * delta;
   if (motion.targetY === null) {
     motion.y += (previousVelocityY + motion.velocityY) * 0.5 * delta;
   } else {

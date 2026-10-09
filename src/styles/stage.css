@@ -37,9 +37,7 @@
 .lantern-stage--running .lantern-stage__nightfall,
 .lantern-stage--eliminating .lantern-stage__nightfall,
 .lantern-stage--finalists3 .lantern-stage__nightfall,
-.lantern-stage--eliminatingToTwo .lantern-stage__nightfall,
-.lantern-stage--finalists2 .lantern-stage__nightfall,
-.lantern-stage--eliminatingToOne .lantern-stage__nightfall,
+.lantern-stage--eliminatingLosers .lantern-stage__nightfall,
 .lantern-stage--finalist1 .lantern-stage__nightfall,
 .lantern-stage--magnifying .lantern-stage__nightfall,
 .lantern-stage--charging .lantern-stage__nightfall,
@@ -485,31 +483,43 @@
   animation: lantern-eliminating-away 1100ms cubic-bezier(.22, .7, .26, 1) var(--elimination-delay) both !important;
 }
 
-.flying-number-lantern--finalist-leaving:not([data-motion-native='true']) {
+.flying-number-lantern--finalist-leaving:not([data-motion-native='true']):not([data-active='true']) {
   z-index: 5;
   animation: lantern-finalist-depart 800ms cubic-bezier(.18, .72, .26, 1) both !important;
 }
 
-.flying-number-lantern--winner-gliding:not([data-motion-native='true']) {
+.flying-number-lantern--winner-gliding:not([data-motion-native='true']):not([data-active='true']) {
   z-index: 6;
   animation: lantern-winner-glide 1200ms cubic-bezier(.24, .08, .28, 1) both !important;
 }
 
-.lantern-stage--magnifying .flying-number-lantern--winner-focus:not([data-motion-native='true']) {
+.lantern-stage--magnifying .flying-number-lantern--winner-focus:not([data-motion-native='true']):not([data-active='true']) {
   z-index: 8;
   animation: winner-lantern-magnify 1200ms cubic-bezier(.2, .75, .25, 1) both;
   filter: drop-shadow(0 0 22px rgba(255, 214, 112, .82));
 }
 
-.lantern-stage--charging .flying-number-lantern--charging:not([data-motion-native='true']) {
+.lantern-stage--charging .flying-number-lantern--charging:not([data-motion-native='true']):not([data-active='true']) {
   z-index: 8;
   animation: winner-lantern-charge 550ms cubic-bezier(.2, .85, .3, 1) both;
   filter: drop-shadow(0 0 32px rgba(255, 213, 122, .88));
 }
 
-.lantern-stage--burst .flying-number-lantern--winner-focus:not([data-motion-native='true']),
-.lantern-stage--revealing .flying-number-lantern--winner-focus:not([data-motion-native='true']) {
+.lantern-stage--burst .flying-number-lantern--winner-focus:not([data-motion-native='true']):not([data-active='true']),
+.lantern-stage--revealing .flying-number-lantern--winner-focus:not([data-motion-native='true']):not([data-active='true']) {
   animation: winner-lantern-hold 200ms linear both;
+}
+
+.flying-number-lantern--winner-gliding[data-active='true'],
+.flying-number-lantern--winner-focus[data-active='true'] {
+  z-index: 8;
+  filter: drop-shadow(0 0 22px rgba(255, 214, 112, .82));
+  transition: filter 850ms ease;
+}
+
+.lantern-stage--charging .flying-number-lantern--charging[data-active='true'] {
+  z-index: 8;
+  filter: drop-shadow(0 0 32px rgba(255, 213, 122, .88));
 }
 
 .lantern-stage--charging .flying-number-lantern--charging .flying-number-lantern__paper {

@@ -25,8 +25,7 @@ describe('draw timeline', () => {
     const dispatch = vi.fn();
     const durations = [
       ['finalists3', 1_700],
-      ['finalists2', 1_500],
-      ['finalist1', 1_000],
+      ['finalist1', 700],
       ['magnifying', 1_200],
       ['charging', 550],
       ['burst', 200],

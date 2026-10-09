@@ -17,6 +17,7 @@ function makeMotion(): LanternMotion {
     velocityY: -180,
     targetVelocityY: -180,
     windSpeed: 12,
+    windVariation: 1,
     swayAmplitude: 18,
     swayFrequency: 0.6,
     swayPhase: 0.4,
@@ -35,16 +36,17 @@ describe('continuous lantern motion', () => {
     expect(clampFrameDelta(0.016)).toBe(0.016);
   });
 
-  it('scales the active target with viewport area while staying between 18 and 28', () => {
-    expect(getTargetLanternCount(390, 844)).toBe(18);
-    expect(getTargetLanternCount(1280, 720)).toBe(22);
-    expect(getTargetLanternCount(1920, 1080)).toBe(28);
+  it('scales the active target with viewport area while staying between 24 and 36', () => {
+    expect(getTargetLanternCount(390, 844)).toBe(24);
+    expect(getTargetLanternCount(1280, 720)).toBe(24);
+    expect(getTargetLanternCount(1920, 1080)).toBe(32);
+    expect(getTargetLanternCount(2560, 1440)).toBe(36);
   });
 
   it('shortens spawn intervals when density is low and bounds natural jitter', () => {
-    const fastest = getNextSpawnIntervalMs(12, 22, () => 0);
-    const steady = getNextSpawnIntervalMs(22, 22, () => 50);
-    const slowest = getNextSpawnIntervalMs(28, 22, () => 100);
+    const fastest = getNextSpawnIntervalMs(12, 32, () => 0);
+    const steady = getNextSpawnIntervalMs(32, 32, () => 50);
+    const slowest = getNextSpawnIntervalMs(36, 32, () => 60);
     expect(fastest).toBeGreaterThanOrEqual(120);
     expect(fastest).toBeLessThan(steady);
     expect(slowest).toBeGreaterThan(steady);

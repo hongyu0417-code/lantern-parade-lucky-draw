@@ -5,7 +5,7 @@ import type { DrawPhase, Participant, WinnerRecord } from '../draw/types';
 import { createLanternFlightPlan, type LanternFlightPlan } from '../draw/lanternFlight';
 import { chooseNextLanternParticipant, createInitialLanternRoster } from '../draw/flyingLanterns';
 import { createSecureRandomIndex } from '../draw/random';
-import { advanceLanternMotion, getNextSpawnIntervalMs, getTargetLanternCount, MOTION_POOL_CAPACITY, type LanternMotion } from '../draw/lanternMotion';
+import { advanceLanternMotion, getNextSpawnIntervalMs, getTargetLanternCount, LANTERN_SPEED_MULTIPLIER, LOSER_EXIT_OFFSET_MS, MOTION_POOL_CAPACITY, type LanternMotion } from '../draw/lanternMotion';
 import { getDisplayUsername, usesCompactUsernameTypography } from '../draw/usernames';
 
 type LabelTransition = { from: 0 | 1; to: 0 | 1; startedAt: number };
@@ -19,6 +19,8 @@ type Carrier = {
   entered: boolean;
   finalistSlot: number | null;
   loserOrder: number | null;
+  exitAtElapsed: number | null;
+  exitStarted: boolean;
   element: HTMLDivElement | null;
   labels: [HTMLSpanElement | null, HTMLSpanElement | null];
   labelIndex: 0 | 1;
@@ -43,8 +45,7 @@ type BurstPoint = { x: number; y: number; offsetX: number; offsetY: number };
 
 const BURST_FRAGMENTS = Array.from({ length: 20 }, (_, index) => index);
 const FINAL_PHASES = new Set<DrawPhase>(['finalist1', 'magnifying', 'charging', 'burst', 'revealing']);
-const ELIMINATION_PHASES = new Set<DrawPhase>(['eliminatingToTwo', 'eliminatingToOne']);
-const FINAL_HOLD_PHASES = new Set<DrawPhase>(['finalists3', 'finalists2', 'finalist1']);
+const FINAL_HOLD_PHASES = new Set<DrawPhase>(['finalists3', 'finalist1']);
 const LANTERN_HEIGHT = 124;
 
 function checkedRandom(randomIndex: (exclusiveMax: number) => number, max: number): number {
@@ -65,6 +66,7 @@ function makeCarrier(index: number, participant: Participant, randomIndex: (max:
     velocityY: 0,
     targetVelocityY: 0,
     windSpeed: 0,
+    windVariation: 1,
     swayAmplitude: 0,
     swayFrequency: 0.6,
     swayPhase: index * 0.73,
@@ -84,6 +86,8 @@ function makeCarrier(index: number, participant: Participant, randomIndex: (max:
     entered: false,
     finalistSlot: null,
     loserOrder: null,
+    exitAtElapsed: null,
+    exitStarted: false,
     element: null,
     labels: [null, null],
     labelIndex: 0,
@@ -150,12 +154,14 @@ function setCarrierActive(carrier: Carrier, participant: Participant, plan: Lant
   const baseX = width * plan.launchLeftPercent / 100;
   const launchY = height * plan.launchTopVh / 100;
   const duration = plan.flightDurationMs / 1_000;
-  const initialSpeed = (height * (plan.launchTopVh / 100 + 0.12)) / Math.max(3, duration);
+  const initialSpeed = (height * (plan.launchTopVh / 100 + 0.12)) / Math.max(3, duration) * LANTERN_SPEED_MULTIPLIER;
   carrier.plan = plan;
   carrier.active = true;
   carrier.entered = false;
   carrier.finalistSlot = null;
   carrier.loserOrder = null;
+  carrier.exitAtElapsed = null;
+  carrier.exitStarted = false;
   carrier.motion = {
     x: baseX,
     y: launchY,
@@ -164,7 +170,8 @@ function setCarrierActive(carrier: Carrier, participant: Participant, plan: Lant
     windDistance: 0,
     velocityY: -initialSpeed,
     targetVelocityY: -initialSpeed,
-    windSpeed: (width * plan.prevailingWindVw / 100) / duration,
+    windSpeed: (width * plan.prevailingWindVw / 100) / duration * LANTERN_SPEED_MULTIPLIER,
+    windVariation: 0.75 + checkedRandom(randomIndex, 51) / 100,
     swayAmplitude: width * (reducedMotion ? 0.0012 : 0.0035),
     swayFrequency: reducedMotion ? 0.28 : 0.62 + checkedRandom(randomIndex, 36) / 100,
     swayPhase: checkedRandom(randomIndex, 628) / 100,
@@ -226,12 +233,11 @@ function applyPhaseClasses(carrier: Carrier, phase: DrawPhase, winner: WinnerRec
     else element.dataset.loserOrder = String(carrier.loserOrder);
   }
   const isWinner = carrier.participant.number === winner?.number;
-  const leaving = (phase === 'eliminatingToTwo' && carrier.loserOrder === 0)
-    || (phase === 'eliminatingToOne' && carrier.loserOrder === 1);
+  const leaving = phase === 'eliminatingLosers' && carrier.loserOrder !== null;
   element.classList.toggle('flying-number-lantern--finalist', carrier.finalistSlot !== null);
   element.classList.toggle('flying-number-lantern--slow-floating', carrier.finalistSlot !== null && FINAL_HOLD_PHASES.has(phase));
   element.classList.toggle('flying-number-lantern--finalist-leaving', leaving);
-  element.classList.toggle('flying-number-lantern--winner-gliding', phase === 'magnifying' && isWinner);
+  element.classList.toggle('flying-number-lantern--winner-gliding', (phase === 'finalist1' || phase === 'magnifying') && isWinner);
   element.classList.toggle('flying-number-lantern--winner-focus', FINAL_PHASES.has(phase) && isWinner);
   element.classList.toggle('flying-number-lantern--charging', phase === 'charging' && isWinner);
   element.classList.toggle('flying-number-lantern--bursting', (phase === 'burst' || phase === 'revealing') && isWinner);
@@ -276,6 +282,7 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
   const elapsedRef = useRef(0);
   const readyReported = useRef(false);
   const eliminationReported = useRef(false);
+  const losersCueReported = useRef(false);
   const phaseAdvanceReported = useRef<DrawPhase | null>(null);
   const lastProcessedPhase = useRef<DrawPhase | null>(null);
   const previousTime = useRef<number | null>(null);
@@ -302,12 +309,27 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
         const rightExitTime = (right.motion.y + LANTERN_HEIGHT * 1.1) / Math.max(1, Math.abs(right.motion.velocityY));
         return rightExitTime - leftExitTime;
       });
-    const selected = inFlight.slice(0, count);
-    if (selected.length < count) {
-      for (const carrier of carriers.filter((item) => item.active && !selected.includes(item)).sort((left, right) => right.motion.y - left.motion.y)) {
-        if (selected.length >= count) break;
-        selected.push(carrier);
-      }
+    const selected = finalistsRef.current.slice(0, count)
+      .map((participant) => inFlight.find((carrier) => carrier.participant.number === participant.number))
+      .filter((carrier): carrier is Carrier => carrier !== undefined);
+    for (const carrier of inFlight) {
+      if (selected.length >= count) break;
+      if (!selected.includes(carrier)) selected.push(carrier);
+    }
+    const matchedNumbers = new Set(selected
+      .map((carrier) => finalistsRef.current.find(({ number }) => number === carrier.participant.number)?.number)
+      .filter((number): number is string => number !== undefined));
+    const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+    for (const participant of finalistsRef.current.slice(0, count)) {
+      if (selected.length >= count) break;
+      if (matchedNumbers.has(participant.number)) continue;
+      const carrier = carriers.find((item) => !item.active);
+      if (!carrier) break;
+      const plan = createLanternFlightPlan(participant.number, randomIndex, 0);
+      setCarrierActive(carrier, participant, plan, width, height, reducedMotionRef.current, elapsedRef.current, randomIndex);
+      selected.push(carrier);
+      matchedNumbers.add(participant.number);
     }
     const slots = getFinalistSlots(count);
     const available = [...selected];
@@ -317,18 +339,20 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
       return chosen ? { participant, carrier: chosen, slot: slots[index], index } : null;
     }).filter((item): item is { participant: Participant; carrier: Carrier; slot: number; index: number } => item !== null);
     const loserOrder = new Map(finalistsRef.current.filter(({ number }) => number !== winnerRef.current?.number).map(({ number }, index) => [number, index]));
-    const twoEligible = finalistsRef.current.length === 2;
-
     for (const carrier of carriers) {
       carrier.finalistSlot = null;
       carrier.loserOrder = null;
+      carrier.exitAtElapsed = null;
+      carrier.exitStarted = false;
     }
     for (const assignment of assignments) {
       const { carrier, participant, slot } = assignment;
       setIdentity(carrier, participant, true, elapsedRef.current);
       carrier.finalistSlot = slot;
       const order = loserOrder.get(participant.number);
-      carrier.loserOrder = order === undefined ? null : twoEligible ? 1 : order;
+      carrier.loserOrder = order === undefined ? null : order;
+      carrier.motion.targetY = null;
+      carrier.motion.targetVelocityY = reducedMotionRef.current ? -24 : -46;
     }
     for (const carrier of carriers) applyPhaseClasses(carrier, 'eliminating', winnerRef.current);
     eliminationReported.current = false;
@@ -345,29 +369,27 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
   const configureFinalists = (currentPhase: DrawPhase) => {
     const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
     const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
-    const finalistsInPhase = carriers.filter((carrier) => {
-      if (!carrier.active || carrier.finalistSlot === null) return false;
-      if (currentPhase === 'eliminatingToTwo' && carrier.loserOrder === 0) return false;
-      if (currentPhase === 'eliminatingToOne' && carrier.loserOrder === 1) return false;
-      return true;
-    }).sort((left, right) => left.motion.baseX - right.motion.baseX);
-    const slots = getFinalistSlots(finalistsInPhase.length);
-    finalistsInPhase.forEach((carrier, slotIndex) => {
-      if (FINAL_HOLD_PHASES.has(currentPhase) || currentPhase === 'eliminatingToTwo' || currentPhase === 'eliminatingToOne') {
-        carrier.motion.targetVelocityY = reducedMotionRef.current ? -3 : -9;
-        carrier.motion.targetY = height * 0.43;
-        carrier.motion.targetBaseX = width * (slots[slotIndex] ?? 50) / 100;
-      }
-    });
-    for (const carrier of carriers) {
-      if (!carrier.active || carrier.finalistSlot === null) continue;
-      const isLeaving = (currentPhase === 'eliminatingToTwo' && carrier.loserOrder === 0)
-        || (currentPhase === 'eliminatingToOne' && carrier.loserOrder === 1);
-      if (isLeaving) {
-        carrier.motion.targetY = null;
-        carrier.motion.targetVelocityY = -Math.max(420, Math.abs(carrier.motion.velocityY));
+    const activeFinalists = carriers.filter((carrier) => carrier.active && carrier.finalistSlot !== null);
+    const floatSpeed = reducedMotionRef.current ? -24 : -46;
+    for (const carrier of activeFinalists) {
+      carrier.motion.targetY = null;
+      carrier.motion.targetVelocityY = floatSpeed;
+      if (currentPhase === 'eliminatingLosers' && carrier.loserOrder !== null) {
+        carrier.exitAtElapsed = elapsedRef.current + (carrier.loserOrder === 0 ? 0 : LOSER_EXIT_OFFSET_MS / 1_000);
+        carrier.exitStarted = false;
+      } else {
+        carrier.exitAtElapsed = null;
+        carrier.exitStarted = false;
       }
     }
+    if (currentPhase === 'finalist1') {
+      const winnerCarrier = activeFinalists.find((carrier) => carrier.participant.number === winnerRef.current?.number);
+      if (winnerCarrier) {
+        winnerCarrier.motion.targetBaseX = width * 0.5;
+        winnerCarrier.motion.targetY = height * 0.42;
+      }
+    }
+    if (currentPhase === 'eliminatingLosers') losersCueReported.current = false;
     carriers.forEach((carrier) => applyPhaseClasses(carrier, currentPhase, winnerRef.current));
   };
 
@@ -375,7 +397,8 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
     if (lastProcessedPhase.current !== phase) {
       phaseAdvanceReported.current = null;
       if (phase === 'eliminating') beginElimination();
-      if (FINAL_HOLD_PHASES.has(phase) || ELIMINATION_PHASES.has(phase)) configureFinalists(phase);
+      if (FINAL_HOLD_PHASES.has(phase) || phase === 'eliminatingLosers') configureFinalists(phase);
+      if (phase === 'finalist1') configureFinalists(phase);
       if (phase === 'magnifying') {
         const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
         const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
@@ -383,7 +406,7 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
         if (winnerCarrier) {
           winnerCarrier.motion.targetBaseX = width * 0.5;
           winnerCarrier.motion.targetY = height * 0.42;
-          winnerCarrier.motion.targetVelocityY = 0;
+          winnerCarrier.motion.targetVelocityY = reducedMotionRef.current ? -10 : -20;
           winnerCarrier.motion.targetScale = 1.9;
         }
       }
@@ -444,14 +467,27 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
       }
 
       const activeAtFrameStart = carriers.filter((carrier) => carrier.active);
+      const sharedWindSpeed = Math.sin(elapsedRef.current * 0.17) * width * 0.0035;
       for (const carrier of activeAtFrameStart) {
-        advanceLanternMotion(carrier.motion, delta, elapsedRef.current);
+        if (currentPhase === 'eliminatingLosers' && carrier.loserOrder !== null
+          && carrier.exitAtElapsed !== null && !carrier.exitStarted
+          && elapsedRef.current >= carrier.exitAtElapsed) {
+          carrier.exitStarted = true;
+          const exitDistance = Math.max(LANTERN_HEIGHT, carrier.motion.y + LANTERN_HEIGHT * 1.1);
+          const exitSpeed = Math.min(1_000, Math.max(360, exitDistance / 0.9));
+          carrier.motion.targetY = null;
+          carrier.motion.velocityY = -exitSpeed;
+          carrier.motion.targetVelocityY = -exitSpeed;
+          if (!losersCueReported.current) {
+            losersCueReported.current = true;
+            eventRef.current('losers-exit');
+          }
+        }
+        advanceLanternMotion(carrier.motion, delta, elapsedRef.current, sharedWindSpeed);
         advanceLabelTransition(carrier, elapsedRef.current);
         if (!carrier.entered && carrier.motion.y <= height) carrier.entered = true;
         writeMotion(carrier, width, height);
         if (carrier.motion.y < -(LANTERN_HEIGHT * 1.1)) {
-          const exitedAsFinalist = carrier.finalistSlot !== null;
-          const loserOrder = carrier.loserOrder;
           carrier.active = false;
           if (carrier.element) {
             carrier.element.dataset.active = 'false';
@@ -460,19 +496,7 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
             carrier.element.style.opacity = '0';
             carrier.element.style.willChange = 'auto';
           }
-          if (currentPhase === 'eliminatingToTwo' && exitedAsFinalist && loserOrder === 0) {
-            eventRef.current('first-loser-exit');
-            if (phaseAdvanceReported.current !== currentPhase) {
-              phaseAdvanceReported.current = currentPhase;
-              advanceRef.current();
-            }
-          } else if (currentPhase === 'eliminatingToOne' && exitedAsFinalist && loserOrder === 1) {
-            eventRef.current('second-loser-exit');
-            if (phaseAdvanceReported.current !== currentPhase) {
-              phaseAdvanceReported.current = currentPhase;
-              advanceRef.current();
-            }
-          } else if ((currentPhase === 'preparing' || currentPhase === 'running') && !stopRequestedRef.current.current) {
+          if ((currentPhase === 'preparing' || currentPhase === 'running') && !stopRequestedRef.current.current) {
             nextSpawnAt.current = Math.min(nextSpawnAt.current, time + getNextSpawnIntervalMs(carriers.filter((item) => item.active).length, getTargetLanternCount(width, height), randomIndex));
           }
         }
@@ -487,22 +511,18 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
         }
       }
       if (currentPhase === 'eliminating' && !eliminationReported.current
-        && carriers.every((carrier) => !carrier.active || carrier.finalistSlot !== null)) {
+        && carriers.every((carrier) => !carrier.active || carrier.finalistSlot !== null)
+        && carriers.filter((carrier) => carrier.active && carrier.finalistSlot !== null).every((carrier) => carrier.entered)) {
         eliminationReported.current = true;
-        const finalistsNow = finalistsRef.current.length;
-        configureFinalists(finalistsNow >= 3 ? 'finalists3' : finalistsNow === 2 ? 'finalists2' : 'finalist1');
         advanceRef.current();
       }
-      if (currentPhase === 'eliminatingToTwo' && phaseAdvanceReported.current !== currentPhase
-        && !carriers.some((carrier) => carrier.active && carrier.finalistSlot !== null && carrier.loserOrder === 0)) {
+      if (currentPhase === 'eliminatingLosers' && phaseAdvanceReported.current !== currentPhase
+        && !carriers.some((carrier) => carrier.active && carrier.finalistSlot !== null && carrier.loserOrder !== null)) {
         phaseAdvanceReported.current = currentPhase;
-        eventRef.current('first-loser-exit');
-        advanceRef.current();
-      }
-      if (currentPhase === 'eliminatingToOne' && phaseAdvanceReported.current !== currentPhase
-        && !carriers.some((carrier) => carrier.active && carrier.finalistSlot !== null && carrier.loserOrder === 1)) {
-        phaseAdvanceReported.current = currentPhase;
-        eventRef.current('second-loser-exit');
+        if (!losersCueReported.current) {
+          losersCueReported.current = true;
+          eventRef.current('losers-exit');
+        }
         advanceRef.current();
       }
       frame = window.requestAnimationFrame(animate);

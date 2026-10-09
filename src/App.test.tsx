@@ -131,6 +131,17 @@ describe('App draw controls', () => {
     expect(screen.getByRole('dialog', { name: /今晚的幸运得主/ })).toBeInTheDocument();
   });
 
+  it('accepts Space immediately after the lantern stream starts', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /开始抽奖/ }));
+    expect(document.querySelector('main')).toHaveAttribute('data-screen', 'preparing');
+    fireEvent.keyDown(window, { key: ' ' });
+
+    expect(JSON.parse(localStorage.getItem(DRAW_STORAGE_KEY)!).winnerHistory).toHaveLength(1);
+    advanceUntil(() => document.querySelector('main')?.dataset.screen === 'finalists3');
+    expect(document.querySelectorAll('.flying-number-lantern[data-finalist="true"]').length).toBe(3);
+  });
+
   it('keeps the public screen free of operator controls and keeps hidden shortcuts working', () => {
     const requestFullscreen = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(document.documentElement, 'requestFullscreen', { configurable: true, value: requestFullscreen });
@@ -205,6 +216,27 @@ describe('App draw controls', () => {
     expect(motionEvent).toHaveBeenCalledWith('space-stop');
     advanceUntil(() => document.querySelector('main')?.dataset.screen === 'finalists3');
     expect(motionEvent).toHaveBeenCalledWith('finalists3');
+  });
+
+  it('moves from the Final 3 hold through one coordinated exit sequence without showing Final 2', () => {
+    const motionEvent = vi.spyOn(AudioController.prototype, 'onMotionEvent');
+    render(<App />);
+    startAndWaitUntilRunning();
+    fireEvent.keyDown(window, { key: ' ' });
+    advanceUntil(() => document.querySelector('main')?.dataset.screen === 'finalists3');
+
+    const seenPhases: string[] = [];
+    const deadline = frameTime + 18_000;
+    while (document.querySelector('main')?.dataset.screen !== 'finalist1' && frameTime < deadline) {
+      stepFrame();
+      const phase = document.querySelector('main')?.dataset.screen;
+      if (phase) seenPhases.push(phase);
+    }
+
+    expect(document.querySelector('main')?.dataset.screen).toBe('finalist1');
+    expect(seenPhases).not.toContain('finalists2');
+    expect(document.querySelectorAll('.flying-number-lantern[data-active="true"][data-finalist="true"]')).toHaveLength(1);
+    expect(motionEvent).toHaveBeenCalledWith('losers-exit');
   });
 
   it('reserves exactly one winner from the complete eligible pool when Space is pressed', () => {

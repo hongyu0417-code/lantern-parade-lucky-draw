@@ -26,12 +26,10 @@ function nextPhase(state: DrawState): DrawPhase | null {
     case 'preparing': return 'running';
     case 'eliminating':
       return state.animationFinalists.length >= 3 ? 'finalists3'
-        : state.animationFinalists.length === 2 ? 'finalists2'
+        : state.animationFinalists.length === 2 ? 'finalists3'
           : state.animationFinalists.length === 1 ? 'finalist1' : null;
-    case 'finalists3': return 'eliminatingToTwo';
-    case 'eliminatingToTwo': return 'finalists2';
-    case 'finalists2': return 'eliminatingToOne';
-    case 'eliminatingToOne': return 'finalist1';
+    case 'finalists3': return 'eliminatingLosers';
+    case 'eliminatingLosers': return 'finalist1';
     case 'finalist1': return 'magnifying';
     case 'magnifying': return 'charging';
     case 'charging': return 'burst';
@@ -67,7 +65,7 @@ export function drawReducer(state: DrawState, action: DrawAction): DrawState {
       const eligibleNumbers = new Set(state.animationPool.map(({ number }) => number));
       const finalistNumbers = new Set(action.animationFinalists.map(({ number }) => number));
       const expectedFinalists = Math.min(3, eligibleNumbers.size);
-      if (state.phase !== 'running' || state.record.activeWinner || !winnerNumber
+      if ((state.phase !== 'running' && state.phase !== 'preparing') || state.record.activeWinner || !winnerNumber
         || !eligibleNumbers.has(winnerNumber) || !finalistNumbers.has(winnerNumber)
         || finalistNumbers.size !== action.animationFinalists.length
         || finalistNumbers.size !== expectedFinalists

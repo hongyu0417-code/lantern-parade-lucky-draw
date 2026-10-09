@@ -64,7 +64,6 @@ export default function App() {
     if (previousPhase.current !== state.phase) {
       if (state.phase === 'running') handleMotionEvent('running');
       if (state.phase === 'finalists3') handleMotionEvent('finalists3');
-      if (state.phase === 'finalists2') handleMotionEvent('finalists2');
       if (state.phase === 'magnifying') handleMotionEvent('winner-enlargement');
       if (state.phase === 'charging') handleMotionEvent('charge');
       if (state.phase === 'burst') handleMotionEvent('burst');
@@ -101,7 +100,7 @@ export default function App() {
   }, [handleMotionEvent, state.overlay, state.phase]);
 
   const stopDraw = useCallback(() => {
-    if (state.phase !== 'running' || stopRequested.current || !drawLocked.current) return;
+    if ((state.phase !== 'running' && state.phase !== 'preparing') || stopRequested.current || !drawLocked.current) return;
     stopRequested.current = true;
     try {
       const randomIndex = createSecureRandomIndex();
@@ -160,7 +159,8 @@ export default function App() {
     function handleKey(event: KeyboardEvent) {
       const key = event.key.toLowerCase();
       if (key === ' ' || key === 'spacebar') {
-        if (isEditable(event.target) || event.altKey || event.ctrlKey || event.metaKey || state.phase !== 'running') return;
+        if (isEditable(event.target) || event.altKey || event.ctrlKey || event.metaKey
+          || (state.phase !== 'running' && state.phase !== 'preparing')) return;
         const isInteractiveTarget = event.target instanceof HTMLElement
           && event.target.closest('button, a, summary, [role="button"], [role="link"]');
         if (isInteractiveTarget) return;

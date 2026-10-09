@@ -61,7 +61,7 @@ describe('FlyingNumberLanterns', () => {
   it('uses a fixed pool and starts each new carrier below the viewport', () => {
     const { container } = render(view('running'));
     const pool = [...container.querySelectorAll<HTMLElement>('.flying-number-lantern')];
-    expect(pool).toHaveLength(28);
+    expect(pool).toHaveLength(36);
     expect(pool.every((lantern) => lantern.dataset.active === 'false')).toBe(true);
 
     step(0);
@@ -78,8 +78,8 @@ describe('FlyingNumberLanterns', () => {
       .map((lantern) => [lantern.dataset.instanceId!, lantern]));
     advance(8_000);
 
-    expect(container.querySelectorAll('.flying-number-lantern')).toHaveLength(28);
-    expect(container.querySelectorAll('.flying-number-lantern[data-active="true"]').length).toBeGreaterThanOrEqual(18);
+    expect(container.querySelectorAll('.flying-number-lantern')).toHaveLength(36);
+    expect(container.querySelectorAll('.flying-number-lantern[data-active="true"]').length).toBeGreaterThanOrEqual(24);
     for (const lantern of container.querySelectorAll<HTMLElement>('.flying-number-lantern')) {
       expect(originalNodes.get(lantern.dataset.instanceId!)).toBe(lantern);
     }
@@ -105,7 +105,29 @@ describe('FlyingNumberLanterns', () => {
     expect(largestActiveCount).toBeLessThanOrEqual(activeBeforeStop);
     expect(movingBeforeStop.style.transform).not.toBe(previousTransform);
     expect(onAdvancePhase).toHaveBeenCalledOnce();
-    expect(container.querySelectorAll('.flying-number-lantern')).toHaveLength(28);
+    expect(container.querySelectorAll('.flying-number-lantern')).toHaveLength(36);
+  });
+
+  it('keeps all three finalists moving through the finalist hold', () => {
+    const stopRequested = { current: false };
+    const onAdvancePhase = vi.fn();
+    const { container, rerender } = render(view('running', stopRequested, onAdvancePhase));
+    advance(6_000);
+
+    stopRequested.current = true;
+    rerender(view('eliminating', stopRequested, onAdvancePhase));
+    for (let time = 6_016; time <= 13_000; time += 16) step(time);
+    expect(onAdvancePhase).toHaveBeenCalledOnce();
+
+    rerender(view('finalists3', stopRequested, onAdvancePhase));
+    step(13_016);
+    const finalistsNow = [...container.querySelectorAll<HTMLElement>('.flying-number-lantern[data-active="true"][data-finalist="true"]')];
+    const before = finalistsNow.map((lantern) => lantern.style.transform);
+    expect(finalistsNow).toHaveLength(3);
+
+    step(13_032);
+    const after = finalistsNow.map((lantern) => lantern.style.transform);
+    expect(after.every((transform, index) => transform !== before[index])).toBe(true);
   });
 
   it('waits until the opening finalists have entered before making RUNNING stoppable', () => {

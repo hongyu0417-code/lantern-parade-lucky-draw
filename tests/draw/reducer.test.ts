@@ -26,7 +26,7 @@ describe('draw reducer', () => {
     expect(state.phase).toBe('eliminating');
     expect(state.animationFinalists).toEqual(finalists);
 
-    const phases = ['finalists3', 'eliminatingToTwo', 'finalists2', 'eliminatingToOne', 'finalist1', 'magnifying', 'charging', 'burst', 'revealing', 'winner'] as const;
+    const phases = ['finalists3', 'eliminatingLosers', 'finalist1', 'magnifying', 'charging', 'burst', 'revealing', 'winner'] as const;
     for (const phase of phases) {
       state = drawReducer(state, { type: 'ADVANCE_PHASE' });
       expect(state.phase).toBe(phase);
