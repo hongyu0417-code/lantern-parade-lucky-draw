@@ -28,11 +28,36 @@ const lanterns = [
   { left: 98, scale: 0.6, duration: 22, opacity: 0.47 },
 ] as const;
 
+// Keep each lantern's timing and drift independent from its horizontal lane.
+const motionProfiles = [
+  { phase: 0.18, mid: -13, end: 5 },
+  { phase: 0.73, mid: 8, end: -9 },
+  { phase: 0.41, mid: -4, end: 13 },
+  { phase: 0.92, mid: 15, end: 2 },
+  { phase: 0.27, mid: -17, end: -3 },
+  { phase: 0.61, mid: 3, end: 11 },
+  { phase: 0.08, mid: 12, end: -14 },
+  { phase: 0.84, mid: -8, end: 4 },
+  { phase: 0.35, mid: 18, end: -6 },
+  { phase: 0.55, mid: -11, end: 15 },
+  { phase: 0.96, mid: 6, end: -12 },
+  { phase: 0.14, mid: -2, end: 7 },
+  { phase: 0.67, mid: 14, end: -1 },
+  { phase: 0.31, mid: -15, end: -10 },
+  { phase: 0.78, mid: 9, end: 16 },
+  { phase: 0.48, mid: -6, end: 1 },
+  { phase: 0.03, mid: 2, end: -16 },
+  { phase: 0.88, mid: 16, end: 8 },
+  { phase: 0.23, mid: -12, end: 12 },
+  { phase: 0.58, mid: 5, end: -5 },
+] as const;
+
 export function LanternField({ phase }: LanternFieldProps) {
   return (
     <div className={`lantern-field lantern-field--${phase}`} aria-hidden="true">
       {lanterns.map((lantern, index) => {
-        const delay = -(lantern.duration * (index / lanterns.length));
+        const profile = motionProfiles[index];
+        const delay = -(lantern.duration * profile.phase);
         const style = {
           '--lantern-left': `${lantern.left}%`,
           '--lantern-scale': lantern.scale,
@@ -41,6 +66,8 @@ export function LanternField({ phase }: LanternFieldProps) {
           '--lantern-start-scale': lantern.scale * 0.82,
           '--lantern-end-scale': lantern.scale * 0.9,
           '--lantern-delay': `${delay}s`,
+          '--lantern-drift-mid': `${profile.mid}vw`,
+          '--lantern-drift-end': `${profile.end}vw`,
         } as CSSProperties;
 
         return (

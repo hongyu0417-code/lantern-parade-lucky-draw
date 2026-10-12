@@ -29,7 +29,7 @@ export function createLanternFlightPlan(
   launchDelayMs?: number,
 ): LanternFlightPlan {
   const depth = DEPTHS[checkedIndex(randomIndex, DEPTHS.length)];
-  const prevailingWindVw = 1 + checkedIndex(randomIndex, 5) * 0.4;
+  const prevailingWindVw = (checkedIndex(randomIndex, 13) - 6) * 0.4;
   return {
     number,
     launchDelayMs: launchDelayMs ?? checkedIndex(randomIndex, 1_001),
@@ -103,14 +103,13 @@ export function createLanternFlightPlans(
   const finalistSlots = finalists.length === 1 ? [50] : finalists.length === 2 ? [42, 58] : [36, 50, 64];
   const finalistSlotByNumber = new Map(finalists.map(({ number }, index) => [number, finalistSlots[index]]));
   const ordinaryIndexByNumber = new Map(ordinary.map(({ number }, index) => [number, index]));
-  const prevailingWindVw = 1 + checkedIndex(randomIndex, 5) * 0.4;
-
   return candidates.map(({ number }, index) => {
     const finalistSlot = finalistSlotByNumber.get(number);
     const depth = DEPTHS[checkedIndex(randomIndex, DEPTHS.length)];
     const progress = candidates.length <= 1 ? 0 : index / (candidates.length - 1);
     const stagger = progress * MAX_STAGGER_MS + checkedIndex(randomIndex, 121) - 60;
     const launchDelayMs = Math.max(0, Math.min(MAX_STAGGER_MS, Math.round(stagger)));
+    const prevailingWindVw = (checkedIndex(randomIndex, 13) - 6) * 0.4;
     const launchLeftPercent = finalistSlot === undefined
       ? 8 + checkedIndex(randomIndex, 85)
       : finalistSlot - 6 + checkedIndex(randomIndex, 13);

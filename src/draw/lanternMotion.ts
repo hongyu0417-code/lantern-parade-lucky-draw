@@ -55,9 +55,9 @@ export function getNextSpawnIntervalMs(
   targetCount: number,
   randomIndex: (exclusiveMax: number) => number,
 ): number {
-  const jitter = checkedRandomIndex(randomIndex, 61) - 30;
+  const jitter = checkedRandomIndex(randomIndex, 91) - 45;
   const deficit = targetCount - activeCount;
-  const base = 130 - deficit * 10;
+  const base = 165 - Math.min(24, deficit) * 0.7;
   return clamp(Math.round(base + jitter), MIN_SPAWN_INTERVAL_MS, MAX_SPAWN_INTERVAL_MS);
 }
 

@@ -171,12 +171,12 @@ function setCarrierActive(carrier: Carrier, participant: Participant, plan: Lant
     velocityY: -initialSpeed,
     targetVelocityY: -initialSpeed,
     windSpeed: (width * plan.prevailingWindVw / 100) / duration * LANTERN_SPEED_MULTIPLIER,
-    windVariation: 0.75 + checkedRandom(randomIndex, 51) / 100,
-    swayAmplitude: width * (reducedMotion ? 0.0012 : 0.0035),
-    swayFrequency: reducedMotion ? 0.28 : 0.62 + checkedRandom(randomIndex, 36) / 100,
+    windVariation: 0.55 + checkedRandom(randomIndex, 91) / 100,
+    swayAmplitude: width * (reducedMotion ? 0.002 : 0.012 + checkedRandom(randomIndex, 26) / 1_000),
+    swayFrequency: reducedMotion ? 0.28 : 0.32 + checkedRandom(randomIndex, 91) / 100,
     swayPhase: checkedRandom(randomIndex, 628) / 100,
     rotation: 0,
-    rotationAmplitude: reducedMotion ? 0.25 : 0.55 + checkedRandom(randomIndex, 120) / 100,
+    rotationAmplitude: reducedMotion ? 0.25 : 0.4 + checkedRandom(randomIndex, 140) / 100,
     scale: plan.depthScale * 0.88,
     targetScale: plan.depthScale,
     targetY: null,
@@ -215,7 +215,8 @@ function writeMotion(carrier: Carrier, width: number, height: number): void {
   if (motion.y < exitStart) opacity *= Math.max(0, Math.min(1, (motion.y - exitEnd) / (exitStart - exitEnd)));
   const x = Math.max(-size, Math.min(width + size, motion.x));
   const y = Math.min(height * 1.4, Math.max(-height * 1.35, motion.y));
-  element.style.opacity = String(opacity);
+  const opacityValue = opacity.toFixed(3);
+  if (element.style.opacity !== opacityValue) element.style.opacity = opacityValue;
   element.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%) scale(${motion.scale.toFixed(4)}) rotate(${motion.rotation.toFixed(3)}deg)`;
 }
 
