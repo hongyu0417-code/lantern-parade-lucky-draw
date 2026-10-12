@@ -5,7 +5,8 @@ export const MIN_SPAWN_INTERVAL_MS = 120;
 export const MAX_SPAWN_INTERVAL_MS = 450;
 export const MAX_FRAME_DELTA_SECONDS = 0.033;
 export const LANTERN_SPEED_MULTIPLIER = 1.2;
-export const LOSER_EXIT_OFFSET_MS = 400;
+// The two non-winning finalists leave as a synchronized pair.
+export const LOSER_EXIT_OFFSET_MS = 0;
 
 export type LanternMotion = {
   x: number;

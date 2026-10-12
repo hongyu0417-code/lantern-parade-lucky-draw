@@ -118,7 +118,7 @@ describe('AudioController', () => {
 
     expect(afterFirstExitCue).toBe(1);
     expect(oscillators).toHaveLength(afterFirstExitCue);
-    expect(oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(145, 0.34);
+    expect(oscillators[0].frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(145, 0.48);
     audio.dispose();
   });
 

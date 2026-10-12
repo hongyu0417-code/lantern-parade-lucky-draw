@@ -45,7 +45,7 @@ type BurstPoint = { x: number; y: number; offsetX: number; offsetY: number };
 
 const BURST_FRAGMENTS = Array.from({ length: 20 }, (_, index) => index);
 const FINAL_PHASES = new Set<DrawPhase>(['finalist1', 'magnifying', 'charging', 'burst', 'revealing']);
-const FINAL_HOLD_PHASES = new Set<DrawPhase>(['finalists3', 'finalist1']);
+const FINAL_CONFIGURATION_PHASES = new Set<DrawPhase>(['finalists3', 'finalist1']);
 const LANTERN_HEIGHT = 124;
 
 function checkedRandom(randomIndex: (exclusiveMax: number) => number, max: number): number {
@@ -192,7 +192,6 @@ function setCarrierActive(carrier: Carrier, participant: Participant, plan: Lant
     carrier.element.style.visibility = 'visible';
     carrier.element.style.willChange = 'transform, opacity';
     carrier.element.classList.toggle('flying-number-lantern--finalist', false);
-    carrier.element.classList.toggle('flying-number-lantern--slow-floating', false);
     carrier.element.classList.toggle('flying-number-lantern--finalist-leaving', false);
     carrier.element.classList.toggle('flying-number-lantern--winner-gliding', false);
     carrier.element.classList.toggle('flying-number-lantern--winner-focus', false);
@@ -236,7 +235,6 @@ function applyPhaseClasses(carrier: Carrier, phase: DrawPhase, winner: WinnerRec
   const isWinner = carrier.participant.number === winner?.number;
   const leaving = phase === 'eliminatingLosers' && carrier.loserOrder !== null;
   element.classList.toggle('flying-number-lantern--finalist', carrier.finalistSlot !== null);
-  element.classList.toggle('flying-number-lantern--slow-floating', carrier.finalistSlot !== null && FINAL_HOLD_PHASES.has(phase));
   element.classList.toggle('flying-number-lantern--finalist-leaving', leaving);
   element.classList.toggle('flying-number-lantern--winner-gliding', (phase === 'finalist1' || phase === 'magnifying') && isWinner);
   element.classList.toggle('flying-number-lantern--winner-focus', FINAL_PHASES.has(phase) && isWinner);
@@ -374,11 +372,11 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
       .filter((carrier) => carrier.active && carrier.finalistSlot !== null)
       .sort((left, right) => left.finalistSlot! - right.finalistSlot!);
     const compactView = width < 620;
-    const focusScale = compactView ? 0.92 : width < 850 ? 1.16 : 1.4;
+    const focusScale = compactView ? 1.1 : width < 850 ? 1.32 : 1.5;
     const lanternWidth = Math.min(84, Math.max(54, width * 0.041));
-    const spread = Math.min(width * 0.11, Math.max(76, lanternWidth * focusScale * 1.15));
-    const sideRise = compactView ? 11 : 20;
-    const centerRise = compactView ? -17 : -32;
+    const spread = Math.min(width * 0.065, Math.max(42, lanternWidth * 0.82));
+    const sideRise = compactView ? 10 : 20;
+    const centerRise = compactView ? -14 : -24;
     const xOffsets = activeFinalists.length === 3 ? [-spread, 0, spread]
       : activeFinalists.length === 2 ? [-spread / 2, spread / 2] : [0];
     const yOffsets = activeFinalists.length === 3 ? [sideRise, centerRise, sideRise]
@@ -388,15 +386,15 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
       const { motion } = carrier;
       motion.windSpeed = 0;
       motion.windVariation = 0;
-      motion.swayAmplitude = reducedMotionRef.current ? 0 : width * 0.0008;
-      motion.rotationAmplitude = reducedMotionRef.current ? 0 : 0.35;
+      motion.swayAmplitude = 0;
+      motion.rotationAmplitude = 0;
       motion.targetVelocityY = 0;
 
       if (currentPhase === 'finalists3' || currentPhase === 'eliminatingLosers') {
         const targetX = width * 0.5 + (xOffsets[index] ?? 0);
         motion.targetBaseX = targetX - motion.windDistance;
         motion.targetY = height * 0.47 + (yOffsets[index] ?? 0);
-        motion.targetScale = Math.min(compactView ? 1.2 : 1.65, Math.max(focusScale, carrier.plan.depthScale * 1.12));
+        motion.targetScale = Math.min(compactView ? 1.28 : 1.68, Math.max(focusScale, carrier.plan.depthScale * 1.12));
       } else if (currentPhase === 'finalist1' && carrier.participant.number === winnerRef.current?.number) {
         motion.targetBaseX = width * 0.5 - motion.windDistance;
         motion.targetY = height * 0.43;
@@ -420,8 +418,7 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
     if (lastProcessedPhase.current !== phase) {
       phaseAdvanceReported.current = null;
       if (phase === 'eliminating') beginElimination();
-      if (FINAL_HOLD_PHASES.has(phase) || phase === 'eliminatingLosers') configureFinalists(phase);
-      if (phase === 'finalist1') configureFinalists(phase);
+      if (FINAL_CONFIGURATION_PHASES.has(phase) || phase === 'eliminatingLosers') configureFinalists(phase);
       if (phase === 'magnifying') {
         const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
         const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
@@ -499,11 +496,12 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
           && elapsedRef.current >= carrier.exitAtElapsed) {
           carrier.exitStarted = true;
           const exitDistance = Math.max(LANTERN_HEIGHT, carrier.motion.y + LANTERN_HEIGHT * 1.1);
-          const exitDuration = reducedMotionRef.current ? 0.24 : 0.36;
+          const exitDuration = reducedMotionRef.current ? 0.36 : 0.55;
           const exitSpeed = Math.min(3_000, Math.max(640, exitDistance / exitDuration));
           carrier.motion.targetY = null;
           carrier.motion.velocityY = -exitSpeed;
           carrier.motion.targetVelocityY = -exitSpeed;
+          carrier.motion.windSpeed = (carrier.loserOrder === 0 ? -1 : 1) * Math.min(width * 0.075, 120);
           if (!losersCueReported.current) {
             losersCueReported.current = true;
             eventRef.current('losers-exit');

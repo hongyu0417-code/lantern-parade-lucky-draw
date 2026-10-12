@@ -173,18 +173,18 @@ export class AudioController {
       const start = context.currentTime;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      const voice = { oscillator, gain, volume: 0.026, ambient: false };
+      const voice = { oscillator, gain, volume: 0.05, ambient: false };
       oscillator.type = 'triangle';
       oscillator.frequency.setValueAtTime(480, start);
-      oscillator.frequency.exponentialRampToValueAtTime(145, start + 0.34);
+      oscillator.frequency.exponentialRampToValueAtTime(145, start + 0.48);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.026, start + 0.045);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.38);
+      gain.gain.exponentialRampToValueAtTime(0.05, start + 0.045);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.52);
       oscillator.connect(gain);
       gain.connect(context.destination);
       oscillator.onended = () => this.release(voice);
       oscillator.start(start);
-      oscillator.stop(start + 0.39);
+      oscillator.stop(start + 0.53);
       this.active.add(voice);
     } catch {
       // Sound is optional. Browsers may suspend or deny an audio context.

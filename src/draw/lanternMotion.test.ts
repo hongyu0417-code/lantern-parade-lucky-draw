@@ -16,8 +16,7 @@ describe('continuous lantern field motion', () => {
     expect(MIN_ACTIVE_LANTERNS).toBe(24);
     expect(getTargetLanternCount(1920, 1080)).toBe(32);
     expect(LANTERN_SPEED_MULTIPLIER).toBe(1.2);
-    expect(LOSER_EXIT_OFFSET_MS).toBeGreaterThanOrEqual(200);
-    expect(LOSER_EXIT_OFFSET_MS).toBeLessThanOrEqual(400);
+    expect(LOSER_EXIT_OFFSET_MS).toBe(0);
   });
 
   it('rolls the spawn interval against the current lantern count', () => {
