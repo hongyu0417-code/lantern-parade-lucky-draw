@@ -233,13 +233,12 @@
 .floating-lantern {
   position: absolute;
   left: var(--lantern-left);
-  top: var(--lantern-top);
+  top: 0;
   width: 55px;
   height: 92px;
-  opacity: .75;
-  transform: scale(var(--lantern-scale));
+  opacity: 0;
   transform-origin: center center;
-  transition: transform 1400ms cubic-bezier(.19, 1, .22, 1), opacity 900ms ease;
+  animation: lantern-field-ascent var(--lantern-duration) linear var(--lantern-delay) infinite;
   filter: drop-shadow(0 0 5px rgba(255, 161, 62, .38));
 }
 .floating-lantern__body {
@@ -269,6 +268,13 @@
 
 @keyframes water-breathe { from { transform: scaleX(.85); opacity: .13; } to { transform: scaleX(1.2); opacity: .27; } }
 @keyframes lantern-rock { from { transform: translate3d(-3px, -3px, 0) rotate(-2deg); } to { transform: translate3d(3px, 5px, 0) rotate(2deg); } }
+@keyframes lantern-field-ascent {
+  0% { opacity: 0; transform: translate3d(0, 112vh, 0) scale(var(--lantern-start-scale)); }
+  9% { opacity: var(--lantern-opacity); }
+  50% { opacity: var(--lantern-opacity); transform: translate3d(0, -4vh, 0) scale(var(--lantern-scale)); }
+  91% { opacity: var(--lantern-opacity); }
+  100% { opacity: 0; transform: translate3d(0, -125vh, 0) scale(var(--lantern-end-scale)); }
+}
 @keyframes winner-settle { from { opacity: 0; transform: translateY(22px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @media (max-width: 850px) {
