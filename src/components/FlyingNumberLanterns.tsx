@@ -245,7 +245,7 @@ function applyPhaseClasses(carrier: Carrier, phase: DrawPhase, winner: WinnerRec
 }
 
 function getFinalistSlots(count: number): number[] {
-  return count === 1 ? [50] : count === 2 ? [42, 58] : [36, 50, 64];
+  return count === 1 ? [50] : count === 2 ? [47, 53] : [44, 50, 56];
 }
 
 export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reducedMotion, stopRequested, onAdvancePhase, onMotionEvent }: FlyingNumberLanternsProps) {
@@ -370,24 +370,46 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
   const configureFinalists = (currentPhase: DrawPhase) => {
     const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
     const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
-    const activeFinalists = carriers.filter((carrier) => carrier.active && carrier.finalistSlot !== null);
-    const floatSpeed = reducedMotionRef.current ? -24 : -46;
-    for (const carrier of activeFinalists) {
-      carrier.motion.targetY = null;
-      carrier.motion.targetVelocityY = floatSpeed;
+    const activeFinalists = carriers
+      .filter((carrier) => carrier.active && carrier.finalistSlot !== null)
+      .sort((left, right) => left.finalistSlot! - right.finalistSlot!);
+    const compactView = width < 620;
+    const focusScale = compactView ? 0.92 : width < 850 ? 1.16 : 1.4;
+    const lanternWidth = Math.min(84, Math.max(54, width * 0.041));
+    const spread = Math.min(width * 0.11, Math.max(76, lanternWidth * focusScale * 1.15));
+    const sideRise = compactView ? 11 : 20;
+    const centerRise = compactView ? -17 : -32;
+    const xOffsets = activeFinalists.length === 3 ? [-spread, 0, spread]
+      : activeFinalists.length === 2 ? [-spread / 2, spread / 2] : [0];
+    const yOffsets = activeFinalists.length === 3 ? [sideRise, centerRise, sideRise]
+      : activeFinalists.length === 2 ? [-sideRise / 2, sideRise / 2] : [0];
+
+    for (const [index, carrier] of activeFinalists.entries()) {
+      const { motion } = carrier;
+      motion.windSpeed = 0;
+      motion.windVariation = 0;
+      motion.swayAmplitude = reducedMotionRef.current ? 0 : width * 0.0008;
+      motion.rotationAmplitude = reducedMotionRef.current ? 0 : 0.35;
+      motion.targetVelocityY = 0;
+
+      if (currentPhase === 'finalists3' || currentPhase === 'eliminatingLosers') {
+        const targetX = width * 0.5 + (xOffsets[index] ?? 0);
+        motion.targetBaseX = targetX - motion.windDistance;
+        motion.targetY = height * 0.47 + (yOffsets[index] ?? 0);
+        motion.targetScale = Math.min(compactView ? 1.2 : 1.65, Math.max(focusScale, carrier.plan.depthScale * 1.12));
+      } else if (currentPhase === 'finalist1' && carrier.participant.number === winnerRef.current?.number) {
+        motion.targetBaseX = width * 0.5 - motion.windDistance;
+        motion.targetY = height * 0.43;
+        motion.targetVelocityY = reducedMotionRef.current ? -4 : -14;
+        motion.targetScale = Math.max(motion.scale, compactView ? 1.18 : 1.58);
+      }
+
       if (currentPhase === 'eliminatingLosers' && carrier.loserOrder !== null) {
-        carrier.exitAtElapsed = elapsedRef.current + (carrier.loserOrder === 0 ? 0 : LOSER_EXIT_OFFSET_MS / 1_000);
+        carrier.exitAtElapsed = elapsedRef.current + carrier.loserOrder * LOSER_EXIT_OFFSET_MS / 1_000;
         carrier.exitStarted = false;
       } else {
         carrier.exitAtElapsed = null;
         carrier.exitStarted = false;
-      }
-    }
-    if (currentPhase === 'finalist1') {
-      const winnerCarrier = activeFinalists.find((carrier) => carrier.participant.number === winnerRef.current?.number);
-      if (winnerCarrier) {
-        winnerCarrier.motion.targetBaseX = width * 0.5;
-        winnerCarrier.motion.targetY = height * 0.42;
       }
     }
     if (currentPhase === 'eliminatingLosers') losersCueReported.current = false;
@@ -405,9 +427,11 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
         const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
         const winnerCarrier = carriers.find((carrier) => carrier.active && carrier.participant.number === winner?.number);
         if (winnerCarrier) {
-          winnerCarrier.motion.targetBaseX = width * 0.5;
-          winnerCarrier.motion.targetY = height * 0.42;
-          winnerCarrier.motion.targetVelocityY = reducedMotionRef.current ? -10 : -20;
+          winnerCarrier.motion.windSpeed = 0;
+          winnerCarrier.motion.windVariation = 0;
+          winnerCarrier.motion.targetBaseX = width * 0.5 - winnerCarrier.motion.windDistance;
+          winnerCarrier.motion.targetY = height * 0.43;
+          winnerCarrier.motion.targetVelocityY = reducedMotionRef.current ? -4 : -10;
           winnerCarrier.motion.targetScale = 1.9;
         }
       }
@@ -475,7 +499,8 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
           && elapsedRef.current >= carrier.exitAtElapsed) {
           carrier.exitStarted = true;
           const exitDistance = Math.max(LANTERN_HEIGHT, carrier.motion.y + LANTERN_HEIGHT * 1.1);
-          const exitSpeed = Math.min(1_000, Math.max(360, exitDistance / 0.9));
+          const exitDuration = reducedMotionRef.current ? 0.24 : 0.36;
+          const exitSpeed = Math.min(3_000, Math.max(640, exitDistance / exitDuration));
           carrier.motion.targetY = null;
           carrier.motion.velocityY = -exitSpeed;
           carrier.motion.targetVelocityY = -exitSpeed;

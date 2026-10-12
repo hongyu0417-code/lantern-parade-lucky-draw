@@ -197,18 +197,26 @@
 .stage-search__reveal span { font-family: var(--stage-serif); font-size: clamp(6rem, 13vw, 14rem); line-height: 1; color: var(--lantern-light); text-shadow: 0 0 55px rgba(250, 182, 80, .7); }
 
 .lantern-stage--winner .lantern-stage__content {
+  position: absolute;
+  inset: 0;
+  flex: none;
   place-items: center;
   padding: clamp(18px, 4vh, 54px) 24px;
+  pointer-events: none;
 }
-.stage-winner { animation: winner-settle 1400ms cubic-bezier(.19, 1, .22, 1) both; }
+.stage-winner {
+  pointer-events: auto;
+  font-family: var(--stage-serif);
+  animation: winner-settle 1400ms cubic-bezier(.19, 1, .22, 1) both;
+}
 .stage-winner__congratulations {
-  font-size: clamp(1.5rem, 2.4vw, 2.8rem);
+  font-size: clamp(1.8rem, 3vw, 3.5rem);
   text-shadow: 0 2px 12px #06192e, 0 0 30px rgba(247, 190, 99, .48);
 }
 .stage-winner__label {
   margin: clamp(16px, 2.2vh, 30px) 0 0;
   color: var(--lantern-light);
-  font-size: clamp(1.15rem, 1.65vw, 1.8rem);
+  font-size: clamp(1.45rem, 2.1vw, 2.3rem);
   letter-spacing: .2em;
   text-shadow: 0 2px 12px #06192e, 0 0 22px rgba(247, 190, 99, .32);
 }
@@ -660,7 +668,7 @@
 .flying-number-lanterns__emergence p {
   margin: .55em 0 0;
   color: #ffdda0;
-  font-family: var(--stage-sans);
+  font-family: var(--stage-serif);
   font-size: clamp(.8rem, 1.7vw, 1.5rem);
   font-weight: 700;
   letter-spacing: .42em;
