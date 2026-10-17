@@ -88,6 +88,8 @@
 
 .stage-masthead__eyebrow span { color: var(--lantern-gold); padding: 0 .4em; }
 .stage-masthead__year { font-family: var(--stage-serif); letter-spacing: .2em; }
+.stage-masthead__brand { display: flex; align-items: center; gap: clamp(10px, 1.4vw, 20px); }
+.stage-masthead__logo { display: block; width: clamp(48px, 4vw, 64px); height: auto; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(1, 10, 23, .36)); }
 
 .stage-masthead,
 .stage-toolbar,
@@ -309,8 +311,11 @@
 }
 
 @media (max-width: 620px) {
-  .stage-masthead__eyebrow { letter-spacing: .13em; max-width: 260px; line-height: 1.6; }
+  .stage-masthead { gap: clamp(8px, 2vw, 12px); }
+  .stage-masthead__eyebrow { letter-spacing: .13em; max-width: clamp(200px, 42vw, 250px); line-height: 1.6; }
   .stage-masthead__year { letter-spacing: .05em; }
+  .stage-masthead__brand { gap: 7px; }
+  .stage-masthead__logo { width: clamp(40px, 8.5vw, 50px); }
   .stage-intro { padding-top: 11vh; }
   .stage-intro h1 { font-size: clamp(2.4rem, 10vw, 5rem); white-space: normal; text-wrap: balance; }
   .stage-intro__kicker, .stage-winner__label, .stage-winner__congratulations { letter-spacing: .2em; }

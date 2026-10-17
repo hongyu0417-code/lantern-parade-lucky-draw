@@ -67,7 +67,10 @@ export function LanternStage({ phase, activeWinner, animationPool, animationFina
       <header className={mastheadClassName}>
         <div className="stage-masthead__rule" aria-hidden="true" />
         <p className="stage-masthead__eyebrow">UNIVERSITI MALAYA <span>✦</span> LANTERN PARADE</p>
-        <p className="stage-masthead__year">2026</p>
+        <div className="stage-masthead__brand">
+          <p className="stage-masthead__year">2026</p>
+          <img className="stage-masthead__logo" src="/pt26-logo.png" alt="Pesta Tanglung Universiti Malaya PT26" />
+        </div>
       </header>
 
       <div className="lantern-stage__content">
