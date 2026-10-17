@@ -46,7 +46,7 @@ type BurstPoint = { x: number; y: number; offsetX: number; offsetY: number };
 const BURST_FRAGMENTS = Array.from({ length: 20 }, (_, index) => index);
 const FINAL_PHASES = new Set<DrawPhase>(['finalist1', 'magnifying', 'charging', 'burst', 'revealing']);
 const FINAL_CONFIGURATION_PHASES = new Set<DrawPhase>(['finalists3', 'finalist1']);
-const LANTERN_HEIGHT = 146;
+const LANTERN_HEIGHT = 190;
 
 function checkedRandom(randomIndex: (exclusiveMax: number) => number, max: number): number {
   const value = randomIndex(max);
@@ -373,10 +373,10 @@ export function FlyingNumberLanterns({ phase, eligible, finalists, winner, reduc
       .sort((left, right) => left.finalistSlot! - right.finalistSlot!);
     const compactView = width < 620;
     const focusScale = compactView ? 1.1 : width < 850 ? 1.32 : 1.5;
-    const lanternWidth = compactView
-      ? Math.min(76, Math.max(58, width * 0.15))
-      : Math.min(100, Math.max(64, width * 0.048));
-    const spread = Math.min(width * 0.07, Math.max(48, lanternWidth * 0.9));
+    const lanternWidth = width <= 760
+      ? Math.min(88, Math.max(64, width * 0.115))
+      : Math.min(128, Math.max(78, width * 0.06));
+    const spread = Math.min(width * 0.08, Math.max(62, lanternWidth * 0.9));
     const sideRise = compactView ? 10 : 20;
     const centerRise = compactView ? -14 : -24;
     const xOffsets = activeFinalists.length === 3 ? [-spread, 0, spread]
