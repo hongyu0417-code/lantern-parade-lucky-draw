@@ -10,6 +10,8 @@ type OperatorPanelProps = {
   isDrawActive: boolean;
   validationErrors: string[];
   onSave: (settings: DrawSettings) => void;
+  onToggleSound: () => void;
+  onToggleFinaleSound: () => void;
   onUndo: () => void;
   onResetHistory: () => void;
   onResetAll: () => void;
@@ -49,7 +51,7 @@ function containTab(event: KeyboardEvent<HTMLElement>) {
 
 export function OperatorPanel({
   settings, remainingCount, winnerCount, isDrawActive, validationErrors,
-  onSave, onUndo, onResetHistory, onResetAll, onClose,
+  onSave, onToggleSound, onToggleFinaleSound, onUndo, onResetHistory, onResetAll, onClose,
 }: OperatorPanelProps) {
   const [startNumber, setStartNumber] = useState(settings.startNumber);
   const [endNumber, setEndNumber] = useState(settings.endNumber);
@@ -101,6 +103,17 @@ export function OperatorPanel({
         </div>
 
         <form className="operator-panel__form" onSubmit={save} noValidate>
+          <fieldset className="operator-panel__audio-settings" aria-label="音效设置">
+            <legend>音效设置</legend>
+            <label className="operator-panel__toggle">
+              <input type="checkbox" checked={settings.soundEnabled} onChange={onToggleSound} disabled={isDrawActive} />
+              <span><strong>抽奖过程音效</strong><small>开始、升空和抽选提示音</small></span>
+            </label>
+            <label className="operator-panel__toggle">
+              <input type="checkbox" checked={settings.finaleSoundEnabled} onChange={onToggleFinaleSound} disabled={isDrawActive} />
+              <span><strong>终局鼓声音效</strong><small>三盏灯笼聚中时播放</small></span>
+            </label>
+          </fieldset>
           <div className="operator-panel__range">
             <label>起始号码<input type="text" inputMode="numeric" value={startNumber} onChange={(event) => { setStartNumber(event.target.value); setLocalErrors([]); }} disabled={isDrawActive} /></label>
             <label>结束号码<input type="text" inputMode="numeric" value={endNumber} onChange={(event) => { setEndNumber(event.target.value); setLocalErrors([]); }} disabled={isDrawActive} /></label>

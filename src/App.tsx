@@ -61,6 +61,7 @@ export default function App() {
 
   useLayoutEffect(() => {
     audio.current?.setMuted(!state.record.settings.soundEnabled);
+    audio.current?.setFinaleMuted(!state.record.settings.finaleSoundEnabled);
     if (previousPhase.current !== state.phase) {
       if (state.phase === 'running') handleMotionEvent('running');
       if (state.phase === 'finalists3') handleMotionEvent('finalists3');
@@ -70,7 +71,7 @@ export default function App() {
       if (state.phase === 'revealing') handleMotionEvent('reveal');
     }
     previousPhase.current = state.phase;
-  }, [handleMotionEvent, state.phase, state.record.settings.soundEnabled]);
+  }, [handleMotionEvent, state.phase, state.record.settings.soundEnabled, state.record.settings.finaleSoundEnabled]);
 
   const persist = useCallback((record: PersistedDrawRecord, target: 'stage' | 'operator' = 'stage'): boolean => {
     try {
@@ -135,6 +136,11 @@ export default function App() {
   const toggleSound = useCallback(() => {
     const next = updateDrawSettings(recordRef.current, { soundEnabled: !recordRef.current.settings.soundEnabled });
     if (persist(next)) dispatch({ type: 'TOGGLE_SOUND' });
+  }, [persist]);
+
+  const toggleFinaleSound = useCallback(() => {
+    const next = updateDrawSettings(recordRef.current, { finaleSoundEnabled: !recordRef.current.settings.finaleSoundEnabled });
+    if (persist(next)) dispatch({ type: 'TOGGLE_FINALE_SOUND' });
   }, [persist]);
 
   const requestFullscreen = useCallback(() => {
@@ -213,6 +219,7 @@ export default function App() {
       settings={state.record.settings} remainingCount={state.record.availableNumbers.length}
       winnerCount={state.record.winnerHistory.length} isDrawActive={state.phase !== 'idle' && state.phase !== 'winner'}
       validationErrors={validationErrors} onSave={saveSettings} onUndo={undo}
+      onToggleSound={toggleSound} onToggleFinaleSound={toggleFinaleSound}
       onResetHistory={resetHistory} onResetAll={resetAll}
       onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })}
     />}

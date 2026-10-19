@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: DrawSettings = {
   participants: null,
   preventDuplicates: true,
   soundEnabled: true,
+  finaleSoundEnabled: true,
 };
 
 function activeSource(settings: DrawSettings): Participant[] {
@@ -135,7 +136,8 @@ function isSettings(value: unknown): value is DrawSettings {
     && end - start < MAX_PARTICIPANTS
     && validParticipants
     && typeof value.preventDuplicates === 'boolean'
-    && typeof value.soundEnabled === 'boolean';
+    && typeof value.soundEnabled === 'boolean'
+    && (value.finaleSoundEnabled === undefined || typeof value.finaleSoundEnabled === 'boolean');
 }
 
 function isPersistedRecord(value: unknown): value is PersistedDrawRecord {
@@ -168,6 +170,7 @@ export function readDrawRecord(storage: Storage): PersistedDrawRecord {
     if (!isPersistedRecord(parsed)) return createDefaultRecord();
     return {
       ...parsed,
+      settings: { ...parsed.settings, finaleSoundEnabled: parsed.settings.finaleSoundEnabled ?? true },
       availableNumbers: eligibleSource(parsed.settings, parsed.winnerHistory),
     };
   } catch {

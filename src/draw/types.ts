@@ -22,6 +22,7 @@ export type DrawSettings = {
   participants: Participant[] | null;
   preventDuplicates: boolean;
   soundEnabled: boolean;
+  finaleSoundEnabled: boolean;
 };
 
 export type PersistedDrawRecord = {

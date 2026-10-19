@@ -19,6 +19,7 @@ export type DrawAction =
   | { type: 'OPEN_OVERLAY'; overlay: DrawOverlay }
   | { type: 'CLOSE_OVERLAY' }
   | { type: 'TOGGLE_SOUND' }
+  | { type: 'TOGGLE_FINALE_SOUND' }
   | { type: 'UPDATE_RECORD'; record: PersistedDrawRecord };
 
 function nextPhase(state: DrawState): DrawPhase | null {
@@ -105,6 +106,13 @@ export function drawReducer(state: DrawState, action: DrawAction): DrawState {
         ...state,
         record: updateDrawSettings(state.record, {
           soundEnabled: !state.record.settings.soundEnabled,
+        }),
+      };
+    case 'TOGGLE_FINALE_SOUND':
+      return {
+        ...state,
+        record: updateDrawSettings(state.record, {
+          finaleSoundEnabled: !state.record.settings.finaleSoundEnabled,
         }),
       };
     case 'UPDATE_RECORD':

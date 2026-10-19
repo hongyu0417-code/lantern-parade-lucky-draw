@@ -15,6 +15,8 @@ export type LanternAudioEvent =
 export class AudioController {
   private context: AudioContext | null = null;
   private muted = false;
+  private finaleMuted = false;
+  private finaleAudio: HTMLAudioElement | null = null;
   private drawActive = false;
   private tension: 0 | 1 | 2 = 0;
   private active = new Set<Voice>();
@@ -22,6 +24,11 @@ export class AudioController {
   private playedEvents = new Set<LanternAudioEvent>();
 
   initialize(): void {
+    if (!this.finaleAudio && typeof window !== 'undefined' && typeof window.Audio === 'function') {
+      this.finaleAudio = new window.Audio('/lucky-draw-finale.m4a');
+      this.finaleAudio.preload = 'auto';
+      this.finaleAudio.volume = 0.9;
+    }
     if (this.context) {
       if (this.context.state === 'suspended') void this.context.resume().catch(() => undefined);
       return;
@@ -47,6 +54,30 @@ export class AudioController {
     this.muted = muted;
     if (muted) this.stopAll();
     else if (this.drawActive) this.startRunAmbience();
+  }
+
+  setFinaleMuted(muted: boolean): void {
+    if (this.finaleMuted === muted) return;
+    this.finaleMuted = muted;
+    if (muted && this.finaleAudio) {
+      this.finaleAudio.pause();
+      this.finaleAudio.currentTime = 0;
+    }
+  }
+
+  private playFinaleCue(): void {
+    const audio = this.finaleAudio;
+    if (!audio || this.finaleMuted) return;
+    try {
+      audio.currentTime = 0;
+      void audio.play().catch(() => undefined);
+    } catch {
+      // Playback is optional. Browsers may deny media playback.
+    }
+  }
+
+  private finaleCueIsPlaying(): boolean {
+    return Boolean(this.finaleAudio && !this.finaleMuted && !this.finaleAudio.paused && !this.finaleAudio.ended);
   }
 
   private release(voice: Voice): void {
@@ -141,12 +172,12 @@ export class AudioController {
       case 'launch': this.playLaunchCue(); break;
       case 'running': this.startRunAmbience(); this.playAscentCue(); break;
       case 'space-stop': this.playStopCue(); break;
-      case 'finalists3': this.setTension(1); break;
-      case 'losers-exit': this.setTension(2); this.playExitWhoosh(); break;
-      case 'winner-enlargement': this.playMagnifyCue(); break;
-      case 'charge': this.playChargeCue(); break;
-      case 'burst': this.playBurstCue(); break;
-      case 'reveal': this.finishDraw(); this.playWinnerCue(); break;
+      case 'finalists3': this.setTension(1); this.stopRunAmbience(); this.playFinaleCue(); break;
+      case 'losers-exit': this.setTension(2); if (!this.finaleCueIsPlaying()) this.playExitWhoosh(); break;
+      case 'winner-enlargement': if (!this.finaleCueIsPlaying()) this.playMagnifyCue(); break;
+      case 'charge': if (!this.finaleCueIsPlaying()) this.playChargeCue(); break;
+      case 'burst': if (!this.finaleCueIsPlaying()) this.playBurstCue(); break;
+      case 'reveal': this.finishDraw(); if (!this.finaleCueIsPlaying()) this.playWinnerCue(); break;
     }
   }
 
@@ -215,6 +246,8 @@ export class AudioController {
 
   dispose(): void {
     this.stopAll();
+    this.finaleAudio?.pause();
+    this.finaleAudio = null;
     this.drawActive = false;
     if (this.context) void this.context.close().catch(() => undefined);
     this.context = null;
