@@ -17,6 +17,7 @@ export class AudioController {
   private muted = false;
   private finaleMuted = false;
   private finaleAudio: HTMLAudioElement | null = null;
+  private finaleStartTimer: ReturnType<typeof setTimeout> | null = null;
   private drawActive = false;
   private tension: 0 | 1 | 2 = 0;
   private active = new Set<Voice>();
@@ -60,24 +61,39 @@ export class AudioController {
     if (this.finaleMuted === muted) return;
     this.finaleMuted = muted;
     if (muted && this.finaleAudio) {
+      this.cancelFinaleStart();
       this.finaleAudio.pause();
       this.finaleAudio.currentTime = 0;
     }
   }
 
+  private cancelFinaleStart(): void {
+    if (this.finaleStartTimer === null) return;
+    clearTimeout(this.finaleStartTimer);
+    this.finaleStartTimer = null;
+  }
+
   private playFinaleCue(): void {
     const audio = this.finaleAudio;
     if (!audio || this.finaleMuted) return;
-    try {
-      audio.currentTime = 0;
-      void audio.play().catch(() => undefined);
-    } catch {
-      // Playback is optional. Browsers may deny media playback.
-    }
+    this.cancelFinaleStart();
+    this.finaleStartTimer = setTimeout(() => {
+      this.finaleStartTimer = null;
+      if (this.finaleMuted) return;
+      try {
+        audio.currentTime = 0;
+        void audio.play().catch(() => undefined);
+      } catch {
+        // Playback is optional. Browsers may deny media playback.
+      }
+    }, 2000);
   }
 
   private finaleCueIsPlaying(): boolean {
-    return Boolean(this.finaleAudio && !this.finaleMuted && !this.finaleAudio.paused && !this.finaleAudio.ended);
+    return Boolean(!this.finaleMuted && (
+      this.finaleStartTimer !== null
+      || (this.finaleAudio && !this.finaleAudio.paused && !this.finaleAudio.ended)
+    ));
   }
 
   private release(voice: Voice): void {
@@ -245,6 +261,7 @@ export class AudioController {
   }
 
   dispose(): void {
+    this.cancelFinaleStart();
     this.stopAll();
     this.finaleAudio?.pause();
     this.finaleAudio = null;
